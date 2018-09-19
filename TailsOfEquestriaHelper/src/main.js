@@ -47,6 +47,36 @@
     });
   }
 
+  /**
+   * Sets all the characters to use the API implementation of Exploding Hoof.
+   */
+  function setAllUseApiExplodingHoof() {
+    // Get all the characters.
+    let characters = findObjs({
+      _type: 'character'
+    });
+
+    _.each(characters, character => {
+      let charId = character.get('_id');
+      // Try to get the attribute for the character.
+      let attr = findObjs({
+        _type: 'attribute',
+        _characterid: charId,
+        name: 'useApiExplodingHoof'
+      })[0];
+
+      // Set it to 'on' if it exists. Otherwise, create the attribute.
+      if(attr)
+        attr.set('current', 'on');
+      else
+        createObj('attribute', {
+          _characterid: charId,
+          name: 'useApiExplodingHoof',
+          current: 'on'
+        });
+    });
+  }
+
   // Interpret chat commands.
   on('chat:message', msg => {
     try {
@@ -66,9 +96,11 @@
     }
   });
 
-  // When the API is loaded, install the Custom Status Marker menu macro
-  // if it isn't already installed.
+  // When the API is loaded, update the useApiExplodingHoof attribute
+  // for all characters.
   on('ready', () => {
+    setAllUseApiExplodingHoof();
+
     log('ƱƱƱ Initialized Tails of Equestria Helper vSCRIPT_VERSION ƱƱƱ');
   });
 
