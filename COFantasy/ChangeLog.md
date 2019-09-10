@@ -1,5 +1,78 @@
 # COFantasy: Historique des changements (depuis la version 1.0)
 
+## 1.11
+### Capacités
+* Destruction des mort-vivants peut maintenant utiliser les options de tempête de mana
+* Mur de force utilise maintenant une image par défaut.
+* Ajout de la capacité vitalité surnaturelle des créatures magiques.
+* Ajout de l'aspect du démon
+
+### Corrections de bugs
+* !cof-effet-temp met bien l'état associé quand on utilise paralyseTemp ou etourdiTemp
+
+## 1.10
+
+### Capacités
+* Ajout de la capacité corps élémentaire de la voie de l'élémentaire
+* Ajout de la capacité Riposte du champion
+* Ajout de la capacité Seul contre tous du chevalier
+* Ajout de l'enveloppement du cube gelatineux
+
+### Autres améliorations
+* Possibilité d'enduire des munitions de poison
+
+## 1.09
+
+### Capacités
+* Ajout d'une option pour faciliter l'usage des lames jumelles du samouraï
+* Ajout de la capacité Kiai du samouraï
+* Ajout de la capacité Tir fatal du samouraï
+* Ajout de la suggestion du psionique
+* Ajout de l'aura de feu de l'élémentaire de feu
+* Ajout de l'attaque étourdissante du psionique
+* Ajout de controle du métabolisme du psionique
+* Ajout de la surpuissance physique de l'invocateur
+
+## Correction de bugs
+* Correction d'un bug avec l'effet de peur des attaques, maintenant la résistance se fait avec le meilleur de FOR et SAG.
+* Correction d'un bug avec les manoeuvres quand un des opposants n'a pas d'arme précise en main
+* La macro Attaque est maintenant visible des joueurs
+* Correction d'un bug qui faisait planter l'API en cas d'attaque d'un personnage de niveau jamais modifié.
+
+## Autres améliorations
+* Ajout de l'option de mana totale (pour la tempête de mana)
+* Possibilités d'utiliser des fx créés par le MJ.
+
+## 1.08
+
+### Capacités
+* Ajout de la conjuration d'armée de l'invocateur
+* Ajout de la capacité Frappe lourde du chevalier
+* Ajout de la capacité vampirisation de la Voie de la magie maléfique
+
+### Autres améliorations
+* Plus d'affichages de jets de dé (pour les soins de groupe, baies, fortifiants, ...)
+* Compatibilité avec les fiches de PNJ (version 2.1 des fiches)
+
+### Correction de bug
+* L'angle des cônes est maintenant correctement calculé (il était 2 fois trop grand avant)
+* Les options --equipe lisent maintenant correctement les handouts
+* Correction d'un bug qui empêchait d'inactiver l'initiative variable
+
+## 1.07
+
+### Capacités
+* Ajout du défi du samouraï
+* Ajout de la monture loyale du samouraï
+* Ajout du radar mental du psionique
+* Ajout de la capacité Bouclier psi du psionique
+* Ajout de la capacité Proprioception du psionique
+* Ajout de la capacité Défense intuitive du psionique
+* Ajout du champ de protection du psionique
+
+### Autres améliorations
+* Ajout d'une option pour ajouter 1d6 à l'initiative au début du combat
+* Les options de script sont maintenant accessibles avec la commande !cof-options. Les options sont persistantes pour une même partie.
 
 ## 1.06
 ### Capacités
