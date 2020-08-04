@@ -31,8 +31,7 @@ var D20TrapTheme = (() => {
         effect.announce(html.toString(TrapTheme.css));
       })
       .catch(err => {
-        sendChat('TrapTheme: ' + this.name, '/w gm ' + err.message);
-        log(err.stack);
+        ItsATrap.Chat.error(err);
       });
     }
 
@@ -171,7 +170,7 @@ var D20TrapTheme = (() => {
         },
         {
           id: 'spotDC',
-          name: 'Passive Detection DC',
+          name: 'Passive Perception DC',
           desc: 'The passive skill check DC to detect the trap.',
           value: trapEffect.spotDC || '-'
         }
@@ -238,7 +237,7 @@ var D20TrapTheme = (() => {
 
           // If the save result is a secret, whisper it to the GM.
           if(effectResults.hideSave)
-            sendChat('Admiral Ackbar', '/w gm ' + saveMsg.toString(TrapTheme.css));
+            ItsATrap.Chat.whisperGM(saveMsg.toString(TrapTheme.css));
           else
             content.append(saveMsg);
 
@@ -322,8 +321,7 @@ var D20TrapTheme = (() => {
           }
         })
         .catch(err => {
-          sendChat('Trap theme: ' + this.name, '/w gm ' + err.message);
-          log(err.stack);
+          ItsATrap.Chat.error(err);
         });
       }
     }

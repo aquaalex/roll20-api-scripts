@@ -1,9 +1,9 @@
 /* 
- * Version 2.09
+ * Version 2.22
  * Original By Robin Kuiper
  * Changes in Version 0.3.0 and greater by Victor B
  * Changes in this version and prior versions by The Aaron
- * Discord: Vic#5196
+ * Discord: Vic#5196H
  * Roll20: https://app.roll20.net/users/3135709/victor-b
  * Github: https://github.com/vicberg/CombatMaster
 */
@@ -11,7 +11,7 @@ var CombatMaster = CombatMaster || (function() {
     'use strict';
 
     let round = 1,
-	    version = '2.09',
+	    version = '2.22',
         timerObj,
         intervalHandle,
         debug = true,
@@ -53,7 +53,11 @@ var CombatMaster = CombatMaster || (function() {
         doneImage = '3',
         showImage = 'v',
         delayImage = '}',
-        sortConditionsImage = '0';
+        sortConditionsImage = '0',
+        holdImage = 'L',
+        helpImage = 'i',
+        conditionsImage = ':',
+        spellsImage = 'C';
         
     //Styling for the chat responses.
     const styles = {
@@ -82,7 +86,9 @@ var CombatMaster = CombatMaster || (function() {
         fullWidth: 'width: 100%;',
         underline: 'text-decoration: underline;',
         strikethrough: 'text-decoration: strikethrough',
-        background: 'background-color:lightgrey'
+        background: 'background-color:lightgrey',
+        buttonRight: 'display:inline-block;float:right;vertical-aligh:middle',
+        announcePlayer: 'display:inline-block;vertical-aligh:middle',
     },
     // Styling for the chat responses.
     style = "overflow: hidden; background-color: #fff; border: 1px solid #000; padding: 5px; border-radius: 5px;",
@@ -94,13 +100,27 @@ var CombatMaster = CombatMaster || (function() {
     icon_image_positions = {red:"#C91010",blue:"#1076C9",green:"#2FC910",brown:"#C97310",purple:"#9510C9",pink:"#EB75E1",yellow:"#E5EB75",dead:"X",skull:0,sleepy:34,"half-heart":68,"half-haze":102,interdiction:136,snail:170,"lightning-helix":204,spanner:238,"chained-heart":272,"chemical-bolt":306,"death-zone":340,"drink-me":374,"edge-crack":408,"ninja-mask":442,stopwatch:476,"fishing-net":510,overdrive:544,strong:578,fist:612,padlock:646,"three-leaves":680,"fluffy-wing":714,pummeled:748,tread:782,arrowed:816,aura:850,"back-pain":884,"black-flag":918,"bleeding-eye":952,"bolt-shield":986,"broken-heart":1020,cobweb:1054,"broken-shield":1088,"flying-flag":1122,radioactive:1156,trophy:1190,"broken-skull":1224,"frozen-orb":1258,"rolling-bomb":1292,"white-tower":1326,grab:1360,screaming:1394,grenade:1428,"sentry-gun":1462,"all-for-one":1496,"angel-outfit":1530,"archery-target":1564},
     ctMarkers = ['blue', 'brown', 'green', 'pink', 'purple', 'red', 'yellow', '-', 'all-for-one', 'angel-outfit', 'archery-target', 'arrowed', 'aura', 'back-pain', 'black-flag', 'bleeding-eye', 'bolt-shield', 'broken-heart', 'broken-shield', 'broken-skull', 'chained-heart', 'chemical-bolt', 'cobweb', 'dead', 'death-zone', 'drink-me', 'edge-crack', 'fishing-net', 'fist', 'fluffy-wing', 'flying-flag', 'frozen-orb', 'grab', 'grenade', 'half-haze', 'half-heart', 'interdiction', 'lightning-helix', 'ninja-mask', 'overdrive', 'padlock', 'pummeled', 'radioactive', 'rolling-bomb', 'screaming', 'sentry-gun', 'skull', 'sleepy', 'snail', 'spanner',   'stopwatch','strong', 'three-leaves', 'tread', 'trophy', 'white-tower'],
     shaped_conditions = ['blinded', 'charmed', 'deafened', 'frightened', 'grappled', 'incapacitated', 'invisible', 'paralyzed', 'petrified', 'poisoned', 'prone', 'restrained', 'stunned', 'unconscious'],
-	
+
     script_name = 'CombatMaster',
     combatState = 'COMBATMASTER',
 
     inputHandler = function(msg_orig) {
 
-        if (msg_orig.content.indexOf('!cmaster')!==0){
+        log(msg_orig)
+        let status = state[combatState].config.status
+        if (status.autoAddSpells) {
+            if (status.sheet == 'OGL') {
+                if (msg_orig && (msg_orig.rolltemplate && msg_orig.rolltemplate === 'spell') ) {
+                    handleSpellCast(msg_orig)
+                }
+            } else if (status.sheet == 'Shaped')  {
+                if (msg_orig && msg_orig.content.includes("{{spell=1}}")) {
+                    handleSpellCast(msg_orig)
+                }              
+            } 
+        }
+
+        if (msg_orig.content.indexOf('!cmaster')!==0) {
             return;
         }
         
@@ -143,7 +163,7 @@ var CombatMaster = CombatMaster || (function() {
                     })    
                 }
         	}
-        }	
+        }
 	},  
 	
 	//Extracts inline rolls
@@ -179,13 +199,13 @@ var CombatMaster = CombatMaster || (function() {
         }
 
         //find the action and set the cmdSep Action
-	    cmdSep.action = String(tokens).match(/turn|show|config|back|reset|main|remove|add|new|delete|import|export|help/);
+	    cmdSep.action = String(tokens).match(/turn|show|config|back|reset|main|remove|add|new|delete|import|export|help|spell|ignore|clear/);
         //the ./ is an escape within the URL so the hyperlink works.  Remove it
         cmd.replace('./', '');
 
         //split additional command actions
 	    _.each(String(tokens).replace(cmdSep.action+',','').split(','),(d) => {
-            vars=d.match(/(who|next|previous|delay|start|timer|stop|pause|show|all|favorites|setup|conditions|condition|sort|combat|turnorder|accouncements|timer|macro|status|list|export|import|type|key|value|setup|tracker|confirm|direction|duration|message|initiative|config|assigned|type|action|description|target|id|)(?:\:|=)([^,]+)/) || null;
+            vars=d.match(/(who|next|main|previous|delay|start|stop|hold|timer|pause|show|all|favorites|setup|conditions|condition|sort|combat|turnorder|accouncements|timer|macro|status|list|export|import|type|key|value|setup|tracker|confirm|direction|duration|message|initiative|config|assigned|type|action|description|target|id|started|stopped|held|addAPI|remAPI|concentration|view|)(?:\:|=)([^,]+)/) || null;
             if(vars) {
                 if (vars[2].includes('INDEX')) {
                     let key, result, temp
@@ -246,6 +266,7 @@ var CombatMaster = CombatMaster || (function() {
 	commandHandler = function(cmdDetails,msg,restrict,who,playerID){
 	    if (debug){
 	        log ('Command Handler')
+	        log (cmdDetails.action)
 	    }
 	    
         if (cmdDetails.action == 'back'){
@@ -264,7 +285,8 @@ var CombatMaster = CombatMaster || (function() {
                  }
             }           
         }    	        
-        if (cmdDetails.action == 'main'){
+        
+        if (cmdDetails.action == 'main' || !cmdDetails.action){
             sendMainMenu(who)
         }     
         if (cmdDetails.action == 'turn'){
@@ -278,11 +300,14 @@ var CombatMaster = CombatMaster || (function() {
                 previousTurn()
             }      
             if (cmdDetails.details.start) {
-                startCombat(msg.selected);
+                startCombat(msg.selected, who);
             }        
             if (cmdDetails.details.stop) {
-                stopCombat();
-            }   
+                stopCombat(who);
+            }  
+            if (cmdDetails.details.hold) {
+                holdCombat(who);
+            }               
             if (cmdDetails.details.timer == 'pause') {
                 pauseTimer();
             }   
@@ -293,14 +318,11 @@ var CombatMaster = CombatMaster || (function() {
                 sortTurnorder();
             }    
         }
+        
         if (cmdDetails.action == 'show'){
-            if (cmdDetails.details.all) {
-                editFavoriteState('all');
-            }    
-            if (cmdDetails.details.favorites) {
-                editFavoriteState('favorites');
+            if (cmdDetails.details.view) {
+                editShowState(cmdDetails.details.value);
             } 
-    
             if (cmdDetails.details.setup) {
                 sendConfigMenu();
             }    
@@ -321,7 +343,10 @@ var CombatMaster = CombatMaster || (function() {
             }  
             if (cmdDetails.details.status) {
                 sendStatusMenu()
-            }                   
+            }   
+            if (cmdDetails.details.concentration) {
+                sendConcentrationMenu()
+            }             
             if (cmdDetails.details.conditions) {
                 sendConditionsMenu()
             }   
@@ -329,7 +354,13 @@ var CombatMaster = CombatMaster || (function() {
                 exportConditions()
             }      
             if (cmdDetails.details.condition) {
-                sendConditionMenu(cmdDetails.details.condition)
+                if (cmdDetails.details.addAPI) {
+                    sendConditionAddAPIMenu(cmdDetails.details.condition)
+                } else if (cmdDetails.details.remAPI) {
+                    sendConditionRemAPIMenu(cmdDetails.details.condition)
+                } else {
+                    sendConditionMenu(cmdDetails.details.condition)
+                }    
             }    
             if (cmdDetails.details.assigned) {
                 showConditions(msg.selected)
@@ -338,6 +369,7 @@ var CombatMaster = CombatMaster || (function() {
                 sendConditionToChat(cmdDetails.details.key)
             }              
         }   
+        
         if (cmdDetails.action == 'add') {
             if (cmdDetails.details.target) {
                 addTargetsToCondition(msg.selected,cmdDetails.details.id,cmdDetails.details.condition)
@@ -345,14 +377,17 @@ var CombatMaster = CombatMaster || (function() {
                 addCondition(cmdDetails,msg.selected,playerID)
             }
         }
+        
         if (cmdDetails.action == 'remove') {
             if (cmdDetails.details.condition) {
                 removeCondition(cmdDetails, msg.selected)
             }            
-        }            
+        }    
+        
         if (cmdDetails.action == 'config'){
             editCombatState(cmdDetails)   
         }    
+        
         if (cmdDetails.action == 'new'){
             if (cmdDetails.details.condition) {
                 newCondition(cmdDetails.details.condition)  
@@ -360,6 +395,7 @@ var CombatMaster = CombatMaster || (function() {
                 newSubstitution(cmdDetails)
             }                
         }  
+        
         if (cmdDetails.action == 'delete'){
             if (cmdDetails.details.condition) {
                 deleteCondition(cmdDetails.details.condition,cmdDetails.details.confirm)   
@@ -367,53 +403,88 @@ var CombatMaster = CombatMaster || (function() {
                 removeSubstitution(cmdDetails)
             }    
         }      
+        
         if (cmdDetails.action == 'import') {
             importCombatMaster(cmdDetails.details.config)
         }
+        
+        if (cmdDetails.action == 'spell') {
+            if (cmdDetails.details.confirm) {
+                addSpell(cmdDetails.details.key)    
+            } else {
+                ignoreSpell(cmdDetails.details.key)   
+            }
+        }
+        
         if (cmdDetails.action == 'reset') {
 			state[combatState] = {};
 			setDefaults(true);
 			sendMainMenu(who)
         }
+        if (cmdDetails.action == 'ignore') {
+			state[combatState].ignores = [];
+			sendMainMenu(who)
+        }  
+        if (cmdDetails.action == 'clear') {
+			clearTokenStatuses(msg.selected)
+			sendMainMenu(who)
+        }          
         if (cmdDetails.action == 'help') {
-			 makeAndSendMenu(buildHelp(),'Combat Master Help','gm');
+    		showHelp(cmdDetails)
         }        
 	},
 
+    clearTokenStatuses = function(selectedTokens) {
+        let tokenObj
+        selectedTokens.forEach(token => {    
+            if (token._type == 'graphic') {
+                tokenObj        = getObj('graphic', token._id)    
+                if (tokenObj) {
+                    tokenObj.set('statusmarkers', "")
+                    log(tokenObj)
+                }
+            }
+        })    
+    },
+    
 //*************************************************************************************************************
 //MENUS
 //*************************************************************************************************************
     sendMainMenu = function(who) {
-        let nextButton          = makeImageButton('!cmaster --turn,next',nextImage,'Next Turn','transparent',18),
-            prevButton          = makeImageButton('!cmaster --turn,previous',prevImage,'Previous Turn','transparent',18),
-            stopButton          = makeImageButton('!cmaster --turn,stop --main',stopImage,'Stop Combat','transparent',18),
-            startButton         = makeImageButton('!cmaster --turn,start --main',startImage,'Start Combat','transparent',18),
-            pauseTimerButton    = makeImageButton('!cmaster --turn,timer=pause',pauseImage,'Pause Timer','transparent',18),
-            stopTimerButton     = makeImageButton('!cmaster --turn,timer=stop',timerImage,'Stop Timer','transparent',18),
-            allConditionsButton = makeImageButton('!cmaster --show,all --main',allConditionsImage,'Show All Conditions','transparent',18),
-            favoritesButton     = makeImageButton('!cmaster --show,favorites --main',favoriteImage,'Show Favorites','transparent',18),
-            configButton        = makeImageButton('!cmaster --show,setup',backImage,'Show Setup','transparent',18),
-            showButton          = makeImageButton('!cmaster --show,assigned',showImage,'Show Conditions','transparent',18),
-            sortButton          = makeImageButton('!cmaster --turn,sort',sortImage,'Sort Turnorder','transparent',18),
-            listItems           = [],
-            titleText           = 'CombatMaster Menu<span style="' + styles.version + '"> (' + version + ')</span>',
-            contents, key, condition, conditions, conditionButton, addButton, removeButton, favoriteButton, listContents, rowCount=1;
-
         if (debug) {
             log('Send Main Menu')
         }
+        
+        let nextButton          = makeImageButton('!cmaster --turn,next',nextImage,'Next Turn','transparent',18)
+        let prevButton          = makeImageButton('!cmaster --turn,previous',prevImage,'Previous Turn','transparent',18)
+        let stopButton          = makeImageButton('!cmaster --turn,stop --main',stopImage,'Stop Combat','transparent',18)
+        let holdButton          = makeImageButton('!cmaster --turn,hold',holdImage,'Hold Combat','transparent',18)
+        let startButton         = makeImageButton('!cmaster --turn,start --main',startImage,'Start Combat','transparent',18)
+        let pauseTimerButton    = makeImageButton('!cmaster --turn,timer=pause',pauseImage,'Pause Timer','transparent',18)
+        let stopTimerButton     = makeImageButton('!cmaster --turn,timer=stop',timerImage,'Stop Timer','transparent',18)
+        let configButton        = makeImageButton('!cmaster --show,setup',backImage,'Show Setup','transparent',18)
+        let showButton          = makeImageButton('!cmaster --show,assigned',showImage,'Show Conditions','transparent',18)
+        let sortButton          = makeImageButton('!cmaster --turn,sort',sortImage,'Sort Turnorder','transparent',18)
+        let helpButton
+        
+        if (state[combatState].config.hold.held) {
+            helpButton          = makeImageButton('!cmaster --help,held',helpImage,'Help','transparent',18,'white')
+        } else if (inFight() ) { 
+            helpButton          = makeImageButton('!cmaster --help,started',helpImage,'Help','transparent',18,'white')
+        } else {
+            helpButton          = makeImageButton('!cmaster --help,stopped',helpImage,'Help','transparent',18,'white')
+        }    
+        let listItems           = []
+        let titleText           = 'CombatMaster Menu<span style="'+styles.version+'"> ('+version+')</span>'+'<span style='+styles.buttonRight+'>'+helpButton+'</span>'
+        let contents, key, condition, conditions, conditionButton, addButton, removeButton, favoriteButton, listContents, rowCount=1;
 
-        if (inFight() ) {
-            contents = '<div style="background-color:green;width:100%;padding:2px;vertical-align:middle">'+stopButton + prevButton + nextButton + pauseTimerButton + stopTimerButton + showButton + sortButton 
+        if (state[combatState].config.hold.held) {
+            contents = '<div style="background-color:yellow">'+startButton
+        } else if (inFight() ) {
+            contents = '<div style="background-color:green;width:100%;padding:2px;vertical-align:middle">'+stopButton + holdButton + prevButton + nextButton + pauseTimerButton + stopTimerButton + showButton + sortButton 
         } else {
             contents = '<div style="background-color:red">'+startButton
         }
-        
-        if (['favorites',null].includes(state[combatState].config.status.showConditions)){
-            contents += allConditionsButton
-        } else {
-            contents += favoritesButton
-        } 
 
         contents += configButton
         contents += '</div>'
@@ -470,18 +541,38 @@ var CombatMaster = CombatMaster || (function() {
             if (state[combatState].config.status.showConditions == 'favorites') {
                 if (condition.favorite) {
                     listItems.push(listContents);
-                }    
-            } else {
+                }
+            } 
+            if (state[combatState].config.status.showConditions == 'conditions') {
+                if (condition.type == 'Condition') {
+                    listItems.push(listContents);
+                }
+            } 
+            if (state[combatState].config.status.showConditions == 'spells') {
+                if (condition.type == 'Spell') {
+                    listItems.push(listContents);
+                }
+            } 
+            if (state[combatState].config.status.showConditions == 'all') {
                 listItems.push(listContents);
             }
         }
+        
+        let viewButton = makeBigButton('Change View', '!cmaster --show,view,value=?{View|All,all|Conditions,conditions|Spells,spells|Favorites,favorites|} --main')
 
-        //send menu 
         state[combatState].config.previousPage = 'main'
-        if (who == 'gm') {
-            makeAndSendMenu(contents+makeList(listItems),titleText,who);
+        
+        if (state[combatState].config.status.access && who != 'None') {
+            let playerIDs = state[combatState].config.status.access.split(',');
+            playerIDs.forEach((player) => {
+                makeAndSendMenu(contents+makeList(listItems)+viewButton,titleText,player);    
+            })
+        }
+        
+        if (who == 'gm' || who == 'None') {
+            makeAndSendMenu(contents+makeList(listItems)+viewButton,titleText,who);
         } else {
-            makeAndSendMenu(makeList(listItems),titleText,who);
+            makeAndSendMenu(makeList(listItems)+viewButton,titleText,who);
         }    
     },
     
@@ -493,46 +584,54 @@ var CombatMaster = CombatMaster || (function() {
     },    
 
     sendConfigMenu = function() {
-		let configIntiativeButton       = makeBigButton('Initiative', '!cmaster --show,initiative'),
-	     	configTurnorderButton       = makeBigButton('Turnorder', '!cmaster --show,turnorder'),
-			configTimerButton           = makeBigButton('Timer', '!cmaster --show,timer'),
-			configAnnouncementsButton   = makeBigButton('Announce', '!cmaster --show,announce'),
-			configMacroButton           = makeBigButton('Macro & API', '!cmaster --show,macro'),
-			configStatusButton          = makeBigButton('Status', '!cmaster --show,status'),
-			configConditionButton       = makeBigButton('Conditions', '!cmaster --show,conditions'),
-			exportButton                = makeBigButton('Export', '!cmaster --show,export'),
-			importButton                = makeBigButton('Import', '!cmaster --import,config=?{Config}'),	
-			resetButton                 = makeBigButton('Reset', '!cmaster --reset'),
-			backToTrackerButton         = makeBigButton('Back', '!cmaster --back,tracker'),
-			titleText                   = 'CombatMaster Setup<span style="' + styles.version + '"> (' + version + ')</span>',
-			combatHeaderText            = '<div style="'+styles.header+'">Combat Setup</div>',
-			statusHeadersText           = '<div style="'+styles.header+'">Status Setup</div>',
-			resetHeaderText             = '<div style="'+styles.header+'">Reset CombatTracker</div>',	
-			backToTrackerText           = '<div style="'+styles.header+'">Return</div>',	
-			
-		 	contents  = combatHeaderText
-			contents += configIntiativeButton
-			contents += configTurnorderButton			
-			contents += configTimerButton
-			contents += configAnnouncementsButton
-			contents += configMacroButton
-			contents += statusHeadersText 
-			contents += configStatusButton
-			contents += configConditionButton
-			contents += exportButton
-			contents += importButton
-			contents += resetHeaderText
-			contents += resetButton
-		    contents += backToTrackerText
-		    contents += backToTrackerButton
+		let configIntiativeButton       = makeBigButton('Initiative', '!cmaster --show,initiative')
+	    let configTurnorderButton       = makeBigButton('Turnorder', '!cmaster --show,turnorder')
+		let	configTimerButton           = makeBigButton('Timer', '!cmaster --show,timer')
+		let	configAnnouncementsButton   = makeBigButton('Announce', '!cmaster --show,announce')
+		let	configMacroButton           = makeBigButton('Macro & API', '!cmaster --show,macro')
+		let	configConcentrationButton   = makeBigButton('Concentration', '!cmaster --show,concentration')
+		let	configStatusButton          = makeBigButton('Status', '!cmaster --show,status')
+		let	configConditionButton       = makeBigButton('Conditions', '!cmaster --show,conditions')
+		let	exportButton                = makeBigButton('Export', '!cmaster --show,export')
+		let	importButton                = makeBigButton('Import', '!cmaster --import,config=?{Config}')	
+		let	resetButton                 = makeBigButton('Reset', '!cmaster --reset')
+		let	ignoreButton                = makeBigButton('Remove Ignores', '!cmaster --ignore')
+		let	clearButton                 = makeBigButton('Clear Token Statuses', '!cmaster --clear')
+		let helpButton                  = makeImageButton('!cmaster --help,setup',helpImage,'Help','transparent',18,'white')
+		let	backToTrackerButton         = makeBigButton('Back', '!cmaster --back,tracker')
+		let	titleText                   = 'Setup'+'<span style='+styles.buttonRight+'>'+helpButton+'</span>'
+		let	combatHeaderText            = '<div style="'+styles.header+'">Combat Setup</div>'
+		let	statusHeadersText           = '<div style="'+styles.header+'">Status Setup</div>'
+		let	resetHeaderText             = '<div style="'+styles.header+'">Reset CombatMaster</div>'	
+		let	backToTrackerText           = '<div style="'+styles.header+'">Return</div>'	
+		let contents	
+		
+	 	contents  = combatHeaderText
+		contents += configIntiativeButton
+		contents += configTurnorderButton			
+		contents += configTimerButton
+		contents += configAnnouncementsButton
+		contents += configMacroButton
+		contents += statusHeadersText 
+		contents += configStatusButton
+		contents += configConditionButton
+		contents += configConcentrationButton
+		contents += exportButton
+		contents += importButton
+		contents += resetHeaderText
+		contents += resetButton
+		contents += ignoreButton
+		contents += clearButton
+	    contents += backToTrackerText
+	    contents += backToTrackerButton
 
         makeAndSendMenu(contents, titleText, 'gm');
     },
 
     sendInitiativeMenu = function() {
-        let backButton = makeBigButton('Back', '!cmaster --back,setup'),
-            listItems = [], 
-            initiative=state[combatState].config.initiative;
+        const banner = makeBanner('initiative','Initiative','setup')
+        let listItems  = []
+        let initiative = state[combatState].config.initiative;
 		
 		listItems.push(makeTextButton('Roll Initiative', initiative.rollInitiative, '!cmaster --config,initiative,key=rollInitiative,value=?{Initiative|None,None|CombatMaster,CombatMaster|Group-Init,Group-Init} --show,initiative'))
         listItems.push(makeTextButton('Roll Each Round', initiative.rollEachRound, '!cmaster --config,initiative,key=rollEachRound,value='+!initiative.rollEachRound + ' --show,initiative')) 
@@ -550,13 +649,13 @@ var CombatMaster = CombatMaster || (function() {
             }
 		}
 
-        makeAndSendMenu(makeList(listItems, backButton), 'Initiative Setup', 'gm');
+        makeAndSendMenu(makeList(listItems,banner.backButton),banner.titleText,'gm');
     },
 
 	sendTurnorderMenu = function() {
-        let backButton = makeBigButton('Back', '!cmaster --back,setup'),
-            listItems = [],
-            turnorder = state[combatState].config.turnorder;
+        const banner = makeBanner('turnorder','Turnorder','setup')
+        let listItems = []
+        let turnorder = state[combatState].config.turnorder
 
         let installed 
         installed = verifyInstalls(turnorder.nextMarkerType)
@@ -602,15 +701,14 @@ var CombatMaster = CombatMaster || (function() {
         listItems.push(makeTextButton('FX',turnorder.turnFX, '!cmaster --config,turnorder,key=turnFX,value=?{FX Command|} --show,turnorder'))
         listItems.push(makeTextButton('Macro',turnorder.turnMacro, '!cmaster --config,turnorder,key=turnMacro,value=?{Macro Name|} --show,turnorder'))
 
-        makeAndSendMenu(makeList(listItems, backButton), 'Turnorder Setup', 'gm');
+        makeAndSendMenu(makeList(listItems,banner.backButton),banner.titleText,'gm');
     },
 	
     sendTimerMenu = function() {
-        let backButton = makeBigButton('Back', '!cmaster --back,setup'),
-            listItems = [],
-            timer = state[combatState].config.timer,
-            contents;
-            
+        const banner = makeBanner('timer','Timer','setup')
+        let listItems = []
+        let timer = state[combatState].config.timer
+
         listItems.push(makeTextButton('Turn Timer', timer.useTimer, '!cmaster --config,timer,key=useTimer,value='+!timer.useTimer + ' --show,timer'))
         
         if (timer.useTimer) {
@@ -622,31 +720,29 @@ var CombatMaster = CombatMaster || (function() {
             listItems.push(makeTextButton('Token Font Size',timer.timerFontSize, '!cmaster --config,timer,key=timerFontSize,value=?{Font Size|'+timer.timerFontSize+'} --show,timer'))
         }
             
-        contents = makeList(listItems, backButton);	
-
-		makeAndSendMenu(contents, 'Timer Setup', 'gm');
+        makeAndSendMenu(makeList(listItems,banner.backButton),banner.titleText,'gm');
     },	
 	
     sendAnnounceMenu = function() {
-        let backButton = makeBigButton('Back', '!cmaster --back,setup'),
-			announcements = state[combatState].config.announcements,
-			listItems = [
+        const banner = makeBanner('announcements','Announcements','setup')      
+		let	announcements = state[combatState].config.announcements
+		
+		let	listItems = [
 				makeTextButton('Announce Rounds', announcements.announceRound, '!cmaster --config,announcements,key=announceRound,value='+!announcements.announceRound + ' --show,announce'),
 				makeTextButton('Announce Turns', announcements.announceTurn, '!cmaster --config,announcements,key=announceTurn,value='+!announcements.announceTurn + ' --show,announce'),
 				makeTextButton('Whisper GM Only', announcements.whisperToGM, '!cmaster --config,announcements,key=whisperToGM,value='+!announcements.whisperToGM + ' --show,announce'),
 				makeTextButton('Shorten Long Names', announcements.handleLongName, '!cmaster --config,announcements,key=handleLongName,value='+!announcements.handleLongName + ' --show,announce'),
                 makeTextButton('Show NPC Conditions', announcements.showNPCTurns, '!cmaster --config,announcements,key=showNPCTurns,value='+!announcements.showNPCTurns + ' --show,announce'),				
-			],
-			contents = makeList(listItems, backButton);	
-
-        makeAndSendMenu(contents, 'Announcements Setup', 'gm');
+			]
+		
+		makeAndSendMenu(makeList(listItems,banner.backButton),banner.titleText,'gm');
     },
 	
 	sendMacroMenu = function() {
-        let backButton = makeBigButton('Back', '!cmaster --back,setup'),
-            addButton = makeBigButton('Add Substiution', '!cmaster --new,macro,type=?{Type|CharID,CharID|CharName,CharName|TokenID,TokenID|PlayerID,PlayerID},action=?{Action|}'),
-            substitutions = state[combatState].config.macro.substitutions,
-            listItems=[], contents,deleteButton,listContents
+	    const banner = makeBanner('macro','Macro & API','setup') 
+        let addButton = makeBigButton('Add Substiution', '!cmaster --new,macro,type=?{Type|CharID,CharID|CharName,CharName|TokenID,TokenID|PlayerID,PlayerID},action=?{Action|}')
+        let substitutions = state[combatState].config.macro.substitutions
+        let listItems=[],contents,deleteButton,listContents
   
         substitutions.forEach((substitution) => {
             deleteButton = makeImageButton('!cmaster --delete,macro,action='+substitution.action,deleteImage,'Delete Substitution','transparent',12)
@@ -658,34 +754,63 @@ var CombatMaster = CombatMaster || (function() {
             
             listItems.push(listContents)
         }) 
-       
-        contents = makeList(listItems, backButton, addButton);	
-        makeAndSendMenu(contents, 'Macro & API Setup', 'gm');
+
+        makeAndSendMenu(addButton+makeList(listItems,banner.backButton),banner.titleText,'gm');
 	},
 	
 	sendStatusMenu = function() {
-        let backButton = makeBigButton('Back', '!cmaster --back,setup'),
-            listItems = [
-				makeTextButton('Whisper GM Only', state[combatState].config.status.sendOnlyToGM, '!cmaster --config,status,key=sendOnlyToGM,value='+!state[combatState].config.status.sendOnlyToGM+' --show,status'),
-				makeTextButton('Player Allowed Changes', state[combatState].config.status.userChanges, '!cmaster --config,status,key=userChanges,value='+!state[combatState].config.status.userChanges+' --show,status'),
-				makeTextButton('Send Changes to Chat', state[combatState].config.status.sendConditions, '!cmaster --config,status,key=sendConditions,value='+!state[combatState].config.status.sendConditions+' --show,status'),	
-				makeTextButton('Clear Conditions on Close', state[combatState].config.status.clearConditions, '!cmaster --config,status,key=clearConditions,value='+!state[combatState].config.status.clearConditions + ' --show,status'),
-				makeTextButton('Use Messages', state[combatState].config.status.useMessage, '!cmaster --config,status,key=useMessage,value='+!state[combatState].config.status.useMessage + ' --show,status'),
-			],			
-			contents = makeList(listItems, backButton);	
+	    const banner = makeBanner('status','Status','setup') 
+        let	status = state[combatState].config.status
+        
+        let listItems = [
+				makeTextButton('Whisper GM Only', status.sendOnlyToGM, '!cmaster --config,status,key=sendOnlyToGM,value='+!status.sendOnlyToGM+' --show,status'),
+				makeTextButton('Player Allowed Changes', status.userChanges, '!cmaster --config,status,key=userChanges,value='+!status.userChanges+' --show,status'),
+				makeTextButton('Send Changes to Chat', status.sendConditions, '!cmaster --config,status,key=sendConditions,value='+!status.sendConditions+' --show,status'),	
+				makeTextButton('Clear Conditions on Close', status.clearConditions, '!cmaster --config,status,key=clearConditions,value='+!status.clearConditions + ' --show,status'),
+				makeTextButton('Use Messages', status.useMessage, '!cmaster --config,status,key=useMessage,value='+!status.useMessage + ' --show,status'),
+				makeTextButton('Auto Add Spells', status.autoAddSpells, '!cmaster --config,status,key=autoAddSpells,value='+!status.autoAddSpells+' --show,status'),
+		]	
 
-        makeAndSendMenu(contents, 'Status Setup', 'gm')		
+        if (status.autoAddSpells) {
+            listItems.push(makeTextButton('Sheet', status.sheet, '!cmaster --config,status,key=sheet,value=?{Sheet|D&D5E OGL,OGL|D&D5E Shaped,Shaped} --show,status'))
+        }
+        
+		makeAndSendMenu(makeList(listItems,banner.backButton),banner.titleText,'gm');	
+	},
+
+	sendConcentrationMenu = function() {
+	    const banner = makeBanner('concentration','Concentration','setup') 
+        let	concentration = state[combatState].config.concentration
+        let listItems = []
+        log(concentration)
+
+		listItems.push(makeTextButton('Use Concentration (5E)', concentration.useConcentration, '!cmaster --config,concentration,key=useConcentration,value='+!concentration.useConcentration + ' --show,concentration'))
+		
+		if (concentration.useConcentration) {
+		    listItems.push(makeTextButton('Add Marker', concentration.autoAdd, '!cmaster --config,concentration,key=autoAdd,value='+!concentration.autoAdd+' --show,concentration'))	            
+		    listItems.push(makeTextButton('Check for Save', concentration.autoRoll, '!cmaster --config,concentration,key=autoRoll,value='+!concentration.autoRoll+' --show,concentration'))  
+		    listItems.push(makeTextButton('Notify', concentration.notify, '!cmaster --config,concentration,key=notify,value=?{Notify|Everyone,Everyone|Character,Character|GM,GM} --show,concentration'))
+		 }
+		
+		if (concentration.autoRoll) {
+		    listItems.push(makeTextButton('Wound Bar', concentration.woundBar, '!cmaster --config,concentration,key=woundBar,value=?{Wound Bar|Bar1,bar1|Bar2,bar2|Bar3,bar3} --show,concentration'))  
+		    listItems.push(makeTextButton('Attribute', concentration.attribute, '!cmaster --config,concentration,key=attribute,value=?{Attribute|} --show,concentration'))  
+		    
+		}
+
+		makeAndSendMenu(makeList(listItems,banner.backButton),banner.titleText,'gm');	
 	},
 	
     sendConditionsMenu = function(message) {
-        let key, duration, direction, override,	condition, conditionButton, favorite, icon,	output, rowCount=1,
-            backButton = makeBigButton('Back', '!cmaster --back,setup'),
-			addButton = makeBigButton('Add Condition', '!cmaster --new,condition=?{Name}'),
-			listItems = [],
-			listContents = '[',
-            icons = [],
-            check = true,
-			contents = ''
+        let key, condition, conditionButton, favorite, icon, output, rowCount=1
+        let backButton = makeBigButton('Back', '!cmaster --back,setup')
+		let	addButton = makeBigButton('Add Condition', '!cmaster --new,condition=?{Name}')
+        let helpButton = makeImageButton('!cmaster --help,conditions',helpImage,'Help','transparent',18,'white')
+        let	titleText  = 'Conditions Setup'+'<span style='+styles.buttonRight+'>'+helpButton+'</span>'      
+		let	listItems = []
+		let	listContents
+        let icons = []
+        let check = true
 			
         for (key in state[combatState].config.conditions) {
             condition       = getConditionByKey(key)
@@ -717,30 +842,29 @@ var CombatMaster = CombatMaster || (function() {
         }
 
         message = (message) ? '<p style="color: red">'+message+'</p>' : '';
-        contents += message + makeList(listItems, backButton, addButton);
+        let contents = message + makeList(listItems, backButton, addButton);
         
         state[combatState].config.previousPage = 'conditions'
-        makeAndSendMenu(contents, 'Conditions Setup', 'gm');
+        makeAndSendMenu(contents,titleText,'gm');	
     },
 
     sendConditionMenu = function(key) {
-        // const matchConditionChar = (character) => (character||{get:()=>''}).get('name').match(/^\s*(condition|decoration|mount)\s*:/i);
-        let condition  = state[combatState].config.conditions[key], listItems = [], markerDropdown = ''
+        let condition  = state[combatState].config.conditions[key]
+        let listItems = []
+        let markerDropdown = ''
+        let helpButton = makeImageButton('!cmaster --help,condition',helpImage,'Help','transparent',18,'white')
+        let	titleText  = 'Condition Setup'+'<span style='+styles.buttonRight+'>'+helpButton+'</span>'  
 
-        if (debug) {
-            log('Send Condition Menu')
-            log('Key:'+key)
-        }
-        
         if (typeof condition.description == 'undefined') {
             condition.description = ' '
         }
         
-	    let removeButton        = makeBigButton('Delete Condition', '!cmaster --delete,condition='+key+',confirm=?{Are you sure?|Yes,yes|No,no}'),
-		    descriptionButton   = makeBigButton('Edit Description', '!cmaster --config,condition='+key+',key=description,value=?{Description|'+condition.description+'} --show,condition='+key),
-		    backButton          = makeBigButton('Back', '!cmaster --back')	 
+	    let removeButton        = makeBigButton('Delete Condition', '!cmaster --delete,condition='+key+',confirm=?{Are you sure?|Yes,yes|No,no}')
+		let descriptionButton   = makeBigButton('Edit Description', '!cmaster --config,condition='+key+',key=description,value=?{Description|'+condition.description+'} --show,condition='+key)
+		let backButton          = makeBigButton('Back', '!cmaster --back')	 
 
 		listItems.push(makeTextButton('Name', condition.name, '!cmaster --config,condition='+key+',key=name,value=?{Name}'))
+		listItems.push(makeTextButton('Type', condition.type, '!cmaster --config,condition='+key+',key=type,value=?{Type|Condition,Condition|Spell,Spell} --show,condition='+key))
 		listItems.push(makeTextButton('Icon Type', condition.iconType, '!cmaster --config,condition='+key+',key=iconType,value=?{Icon Type|Combat Master,Combat Master|Token Marker,Token Marker|Token Condition,Token Condition} --show,condition='+key))
         
         let installed = verifyInstalls(condition.iconType)
@@ -748,30 +872,10 @@ var CombatMaster = CombatMaster || (function() {
             return
         }   
 
-        markerDropdown = '?{Marker';
-        if (condition.iconType == 'Combat Master') {
-            ctMarkers.forEach((marker) => {
-                markerDropdown += '|'+ucFirst(marker).replace(/-/g, ' ')+','+marker
-            })
-        } else if (condition.iconType == 'Token Marker') {
-            if (markers.length == 0) {
-    	        markers = getTokenMarkers();
-            }
-            markers.forEach((marker) => {
-                markerDropdown += '|'+marker.name+','+marker.name
-            })
-        } 
-        // else if (condition.iconType == 'Token Condition') {
-            
-        //     let conditionChars = findObjs({type:"character"}).filter(matchConditionChar);
-        //     log(conditionChars)
-        // }    
-        markerDropdown += '}';
-        
         if (condition.iconType == 'Token Condition') {
             listItems.push(makeTextButton('Icon', condition.icon, '!cmaster --config,condition='+key+',key=icon,value=?{Token Condition|} --show,condition='+key))				
         } else {     
-	        listItems.push(makeTextButton('Icon', getDefaultIcon(condition.iconType,condition.icon), '!cmaster --config,condition='+key+',key=icon,value='+markerDropdown+' --show,condition='+key))				
+	        listItems.push(makeTextButton('Icon', getDefaultIcon(condition.iconType,condition.icon), '!cmaster --config,condition='+key+',key=icon,value='+buildMarkerDropdown(condition.iconType)+' --show,condition='+key))				
         }
         
 		listItems.push(makeTextButton('Duration', condition.duration, '!cmaster --config,condition='+key+',key=duration,value=?{Duration|1} --show,condition='+key))
@@ -780,20 +884,65 @@ var CombatMaster = CombatMaster || (function() {
 		listItems.push(makeTextButton('Favorites', condition.favorite, '!cmaster --config,condition='+key+',key=favorite,value='+!condition.favorite+' --show,condition='+key))
 		listItems.push(makeTextButton('Message', condition.message, '!cmaster --config,condition='+key+',key=message,value=?{Message} --show,condition='+key))
         listItems.push(makeTextButton('Targeted', condition.targeted, '!cmaster --config,condition='+key+',key=targeted,value='+!condition.targeted+' --show,condition='+key))
+        listItems.push(makeTextButton('Concentration', condition.concentration, '!cmaster --config,condition='+key+',key=concentration,value='+!condition.concentration+' --show,condition='+key))
         listItems.push('<div style="margin-top:3px"><i><b>Adding Condition</b></i></div>' )
-		listItems.push(makeTextButton('API', condition.addAPI, '!cmaster --config,condition='+key+',key=addAPI,value=?{API Command|} --show,condition='+key))
-		listItems.push(makeTextButton('Roll20AM', condition.addRoll20AM, '!cmaster --config,condition='+key+',key=addRoll20AM,value=?{Roll20AM Command|} --show,condition='+key))
-		listItems.push(makeTextButton('FX', condition.addFX, '!cmaster --config,condition='+key+',key=addFX,value=?{FX|} --show,condition='+key))
-		listItems.push(makeTextButton('Macro', condition.addMacro, '!cmaster --config,condition='+key+',key=addMacro,value=?{Macro|} --show,condition='+key))
-		listItems.push(makeTextButton('Persistent Macro', condition.addPersistentMacro, '!cmaster --config,condition='+key+',key=addPersistentMacro,value='+!condition.addPersistentMacro+' --show,condition='+key))
+		listItems.push(makeBigButton('Add APIs', '!cmaster --show,condition='+key+',addAPI'))
         listItems.push('<div style="margin-top:3px"><i><b>Removing Condition</b></i></div>' )
-		listItems.push(makeTextButton('API', condition.remAPI, '!cmaster --config,condition='+key+',key=remAPI,value=?{API Command|} --show,condition='+key))
-		listItems.push(makeTextButton('Roll20AM', condition.remRoll20AM, '!cmaster --config,condition='+key+',key=remRoll20AM,value=?{Roll20AM Command|} --show,condition='+key))
-		listItems.push(makeTextButton('FX', condition.remFX, '!cmaster --config,condition='+key+',key=remFX,value=?{FX|} --show,condition='+key))
-		listItems.push(makeTextButton('Macro', condition.remMacro, '!cmaster --config,condition='+key+',key=remMacro,value=?{Macro|} --show,condition='+key))
+		listItems.push(makeBigButton('Remove APIs', '!cmaster --show,condition='+key+',remAPI'))
 
 		let contents = makeList(listItems)+'<hr>'+descriptionButton+'<b>Description:</b>'+condition.description+removeButton+'<hr>'+backButton 	
-        makeAndSendMenu(contents, 'Condition Setup', 'gm');
+        makeAndSendMenu(contents,titleText,'gm');
+    },
+    
+    sendConditionAddAPIMenu = function (key) {
+        const banner = makeBanner('addAPI','Add API','condition='+key)
+        let listItems = []
+        let condition  = state[combatState].config.conditions[key]
+
+        listItems = [
+		    makeTextButton('API', condition.addAPI, '!cmaster --config,condition='+key+',key=addAPI,value=?{API Command|} --show,condition='+key),
+    		makeTextButton('Roll20AM', condition.addRoll20AM, '!cmaster --config,condition='+key+',key=addRoll20AM,value=?{Roll20AM Command|} --show,condition='+key),
+		    makeTextButton('FX', condition.addFX, '!cmaster --config,condition='+key+',key=addFX,value=?{FX|} --show,condition='+key),
+		    makeTextButton('Macro', condition.addMacro, '!cmaster --config,condition='+key+',key=addMacro,value=?{Macro|} --show,condition='+key),
+		    makeTextButton('Persistent Macro', condition.addPersistentMacro, '!cmaster --config,condition='+key+',key=addPersistentMacro,value='+!condition.addPersistentMacro+' --show,condition='+key)
+		]
+		
+		makeAndSendMenu(makeList(listItems,banner.backButton),banner.titleText,'gm');
+    },
+
+    sendConditionRemAPIMenu = function (key) {
+        const banner = makeBanner('remAPI','Remove API','condition='+key)
+        let listItems = []
+        let condition  = state[combatState].config.conditions[key]
+        
+        listItems = [
+		    makeTextButton('API', condition.remAPI, '!cmaster --config,condition='+key+',key=remAPI,value=?{API Command|} --show,condition='+key),
+		    makeTextButton('Roll20AM', condition.remRoll20AM, '!cmaster --config,condition='+key+',key=remRoll20AM,value=?{Roll20AM Command|} --show,condition='+key),
+		    makeTextButton('FX', condition.remFX, '!cmaster --config,condition='+key+',key=remFX,value=?{FX|} --show,condition='+key),
+		    makeTextButton('Macro', condition.remMacro, '!cmaster --config,condition='+key+',key=remMacro,value=?{Macro|} --show,condition='+key)
+		]
+		
+		makeAndSendMenu(makeList(listItems,banner.backButton),banner.titleText,'gm');        
+    },
+    
+    buildMarkerDropdown = function (iconType) {
+        let markerDropdown = '?{Marker';
+        
+        if (iconType == 'Combat Master') {
+            ctMarkers.forEach((marker) => {
+                markerDropdown += '|'+ucFirst(marker).replace(/-/g, ' ')+','+marker
+            })
+        } else if (iconType == 'Token Marker') {
+            if (markers.length == 0) {
+    	        markers = getTokenMarkers();
+            }
+            markers.forEach((marker) => {
+                markerDropdown += '|'+marker.name+','+marker.name
+            })
+        } 
+        markerDropdown += '}';   
+        
+        return markerDropdown
     },
     
     showConditions = function (selectedTokens) {
@@ -828,8 +977,8 @@ var CombatMaster = CombatMaster || (function() {
     },
     
     exportConditions = function () {
-        let backButton = makeBigButton('Back', '!cmaster --back,setup')
-        makeAndSendMenu('<p>Copy the entire content above and save it on your pc.</p><pre>'+HE(JSON.stringify(state[combatState].config))+'</pre><div>'+backButton+'</div>', 'Export Configs');
+        const banner = makeBanner('export','Export CM','setup')
+        makeAndSendMenu('<p>Copy the entire content above and save it on your pc.</p><pre>'+HE(JSON.stringify(state[combatState].config))+'</pre><div>'+banner.backButton+'</div>', banner.titleText);
     },
     
     targetedCondition = function (id, key) {
@@ -838,13 +987,38 @@ var CombatMaster = CombatMaster || (function() {
         }
 
         let title        = 'Select Targets'
-        let condition    = state[combatState].conditions[key]
         let addButton    = makeImageButton('!cmaster --add,target,id='+id+',condition='+key,tagImage,'Targeted Icons','transparent',18,'white')
         title           += '<div style="display:inline-block;float:right;vertical-aligh:middle">'+addButton+'</div>'     
         let contents     = 'Select target tokens to assign this condition and hit the button above when ready'
         makeAndSendMenu(contents,title,'gm');
     },
 
+    targetedSpell = function (key) {
+        if (debug) {
+            log('Targeted Spell')
+        }
+
+        let title        = 'Select Targets'
+        let condition    = getConditionByKey(key)
+        let addButton    = makeImageButton(`!cmaster --add,condition=${key},duration=${condition.duration},direction=${condition.direction},message=${condition.message}`,tagImage,'Spell Targets','transparent',18,'white')
+        title           += '<div style="display:inline-block;float:right;vertical-aligh:middle">'+addButton+'</div>'     
+        let contents     = 'Select target tokens to assign this spell and hit the button above when ready'
+        makeAndSendMenu(contents,title,'gm');
+    },
+    
+    targetedCaster = function (key,duration,direction,message) {
+        if (debug) {
+            log('Targeted Caster')
+        }
+
+        let title        = 'Select Caster'
+        let condition    = getConditionByKey(key)
+        let addButton    = makeImageButton(`!cmaster --add,condition=${key},duration=${duration},direction=${direction},message=${message}`,tagImage,'Spell Caster','transparent',18,'white')
+        title           += '<div style="display:inline-block;float:right;vertical-aligh:middle">'+addButton+'</div>'     
+        let contents     = 'Select the caster to assign concentration and hit the button above when ready'
+        makeAndSendMenu(contents,title,'gm');
+    },    
+    
 //*************************************************************************************************************
 //SESSION STATE MAINTENANCE
 //*************************************************************************************************************	
@@ -866,18 +1040,16 @@ var CombatMaster = CombatMaster || (function() {
 		}
 		else if (cmdDetails.details.status){
 			state[combatState].config.status[cmdDetails.details.key] = cmdDetails.details.value;
-		}    
+		}  
+		else if (cmdDetails.details.concentration){
+			state[combatState].config.concentration[cmdDetails.details.key] = cmdDetails.details.value;
+		} 		
 		else {
     		if (cmdDetails.details.key === 'name' && cmdDetails.details.value.replace(/\s/g, '').toLowerCase() !== state[combatState].config.conditions[cmdDetails.details.condition]) { 
       			state[combatState].config.conditions[cmdDetails.details.value.toLowerCase()] = state[combatState].config.conditions[cmdDetails.details.condition];
       			state[combatState].config.conditions[cmdDetails.details.value.toLowerCase()].key = cmdDetails.details.value.toLowerCase()
       			state[combatState].config.conditions[cmdDetails.details.value.toLowerCase()].name = cmdDetails.details.value
       			delete state[combatState].config.conditions[cmdDetails.details.condition];
-      			if (debug) {
-      			    log('New Key:' + cmdDetails.details.value.toLowerCase())
-      			    log('Old Key:' + cmdDetails.details.condition)
-      			    log ('New Condition:' + state[combatState].config.conditions[cmdDetails.details.value.toLowerCase()])
-      			}    
       			sendConditionMenu(cmdDetails.details.value.toLowerCase())
     	    } else {
     	        if (cmdDetails.details.key == 'description') {
@@ -888,17 +1060,16 @@ var CombatMaster = CombatMaster || (function() {
 		}
 	},
     
-	editFavoriteState = function (value) {
+	editShowState = function (value) {
 		state[combatState].config.status.showConditions = value;
 	},
 	
 //*************************************************************************************************************
 //CONDITIONS 
 //*************************************************************************************************************		
-	newCondition = function (name) {
+	newCondition = function (name, type='Condition', concentration=false, description='None') {
         if (debug) {
             log ('Create Condition')
-            log('Name:'+name)
         }	
         
 		if(!name){
@@ -909,12 +1080,15 @@ var CombatMaster = CombatMaster || (function() {
 			state[combatState].config.conditions[name.toLowerCase()] = {
 				name: name,
 				key: name.toLowerCase(),
+				type: type,
 				icon: 'red',
 				iconType: 'Combat Master',
 				description: ' ',
 				duration: 1,
 				direction: 0,
 				message: 'None',
+				concentration: concentration,
+				description: description,
 				tageted: false,
 				addAPI: 'None',
 				addRoll20AM: 'None',
@@ -926,15 +1100,13 @@ var CombatMaster = CombatMaster || (function() {
 				remFX: 'None',
 				remMacro: 'None'				
 			}	
-			sendConditionMenu(name.toLowerCase());		
+		    sendConditionMenu(name.toLowerCase());		
 		}		
 	},
 	
 	deleteCondition = function (key, confirm) {	
         if (debug) {
             log ('Delete Condition')
-            log('Condition:'+key)
-            log('Confirm:'+confirm)
         }	
 
 		if (confirm === 'yes') {
@@ -953,7 +1125,6 @@ var CombatMaster = CombatMaster || (function() {
     getConditionByMarker = function (marker) {
         if (debug) {
             log('Get Condition By Marker')
-            log("Marker:" + marker)
         }
         
         let key
@@ -979,7 +1150,6 @@ var CombatMaster = CombatMaster || (function() {
         if (debug) {
             log('Verify Condition')
         }
-        
         if (!condition) {
             return true
         }
@@ -1044,12 +1214,12 @@ var CombatMaster = CombatMaster || (function() {
 	    let	defaultCondition = getConditionByKey(key)
 	    let newCondition = {}
 
+        if (!tokenObj) {
+            return
+        }
+        
         if (debug) {
             log('Add Condition To Token')
-            log('Key:' + key)
-            log('Duration:' + duration)
-            log('Direction:' + direction)
-            log('Message:'+message)
         } 
 
         if (verifyCondition(tokenObj.get("_id"), key)) {
@@ -1067,12 +1237,16 @@ var CombatMaster = CombatMaster || (function() {
                 newCondition.iconType           = defaultCondition.iconType
                 newCondition.addMacro           = defaultCondition.addMacro
                 newCondition.addPersistentMacro = defaultCondition.addPersistentMacro
+                newCondition.concentration      = defaultCondition.concentration
+                newCondition.type               = defaultCondition.type
             } else {
                 newCondition.name               = key
                 newCondition.icon               = null
                 newCondition.iconType           = null
                 newCondition.addMacro           = null
                 newCondition.addPersistentMacro = null
+                newCondition.type               = 'Condition'
+                newCondition.concentration      = false
             }
             
             let icon
@@ -1098,7 +1272,6 @@ var CombatMaster = CombatMaster || (function() {
                                         height: tokenObj.get('height')
                                     });   
                     let result = TokenCondition.AttachConditionToToken(condition.id,tokenObj.id);
-                    log(result)             
         			if(result.success) {
         				newCondition.tokenConditionID = condition.id
         			} else {
@@ -1126,7 +1299,6 @@ var CombatMaster = CombatMaster || (function() {
             }   
             
             setTimeout(function() {
-                 log(newCondition)
                  state[combatState].conditions.push(newCondition)
             },500) 
 
@@ -1148,6 +1320,9 @@ var CombatMaster = CombatMaster || (function() {
             if (defaultCondition && defaultCondition.targeted) {
                 targetedCondition(newCondition.id, key)
             }    
+            if (defaultCondition && defaultCondition.concentration == true && defaultCondition.override == true) {
+                targetedCaster('concentration',newCondition.duration,newCondition.direction,'Concentrating on ' + defaultCondition.name)
+            }
         }    
     },  
 
@@ -1162,48 +1337,54 @@ var CombatMaster = CombatMaster || (function() {
     removeConditionFromToken = function(tokenObj,key) {
         if (debug) {
             log('Remove Condition From Token')
-            log('Condition:'+key)
         } 
           
+        if (!tokenObj) {
+            return;
+        }  
+        
         let removed = false
         let icon
-        
-        if (verifyCondition(tokenObj.get("_id"), key)) {  
-            [...state[combatState].conditions].forEach((condition, i) => {
-                if (condition.id == tokenObj.get('_id')) {
-                    if (condition.key == key) {
-                        if (condition.iconType) {
-                            icon = getIconTag(condition.iconType, condition.icon)
-                        }           
-                        if (condition.hasOwnProperty('target')) {
-                            if (condition.target.length > 0) {
-                                condition.target.forEach((target, j) => {
-                                    if (icon) {
-                                        removeMarker(getObj('graphic', target),icon)
-                                    } else if (condition.iconType == 'Token Condition') {
-                                        removeTokenCondition(condition.tokenConditionID)
-                                    }    
-                                })    
-                            }
-                        }    
-                        if (icon) {            
-                            removeMarker(tokenObj,icon)
-                        } else if (condition.iconType == 'Token Condition') {
-                            removeTokenCondition(condition.tokenConditionID)
-                        }                            
-                        state[combatState].conditions.splice(i,1)
-                        removed = true
+
+        [...state[combatState].conditions].forEach((condition, i) => {
+            if (condition.id == tokenObj.get('_id') && condition.key == key) {
+                if (condition.iconType) {
+                    icon = getIconTag(condition.iconType, condition.icon)
+                }           
+                if (condition.hasOwnProperty('target')) {
+                    if (condition.target.length > 0) {
+                        condition.target.forEach((target, j) => {
+                            if (icon) {
+                                removeMarker(getObj('graphic', target),icon)
+                            } else if (condition.iconType == 'Token Condition') {
+                                removeTokenCondition(condition.tokenConditionID)
+                            }    
+                        })    
                     }
-                }      
-            });  
-        }    
+                }    
+                if (icon) {            
+                    removeMarker(tokenObj,icon)
+                } else if (condition.iconType == 'Token Condition') {
+                    removeTokenCondition(condition.tokenConditionID)
+                }     
+                if (condition.concentration == true) {
+                    let concentration = getConditionByKey('concentration')
+                    icon = getIconTag(concentration.iconType, concentration.icon)
+                    if (icon) {            
+                        removeMarker(tokenObj,icon)                    
+                    }
+                }    
+                state[combatState].conditions.splice(i,1)
+                removed = true
+            }      
+        });  
+ 
         return removed
     },
 
     removeTokenCondition = function (id) {
         if (debug) {
             log('Remove Token Condition')
-            log('Token Condition ID:' + id)
         }
         let conditionToken = findObjs({_id:id,_pageid:Campaign().get("playerpageid"), _type: 'graphic'})[0];
         conditionToken.remove()
@@ -1225,8 +1406,6 @@ var CombatMaster = CombatMaster || (function() {
     addTargetsToCondition = function(selectedTokens,id,key) {
         if (debug) {
             log("Add Targets to Condition")
-            log('Id:' + id)
-            log('Key:' + key)
         }
         
         let icon
@@ -1241,7 +1420,6 @@ var CombatMaster = CombatMaster || (function() {
                     }    
                 })    
             }   
-            log (state[combatState].conditions[i])
         });   
         
         makeAndSendMenu('Selected Tokens Added',"Selected Tokens",'gm'); 
@@ -1255,10 +1433,9 @@ var CombatMaster = CombatMaster || (function() {
  
         if (debug) {
             log('Verify Setup')
-            log(initiative.rollInitiative)
         }
         
-        if (!selectedTokens || selectedTokens.length == 0) {
+        if ((!selectedTokens || selectedTokens.length == 0) && !state[combatState].config.hold.held) {
             makeAndSendMenu('No tokens selected.  Combat not started',' ', whisper);   
             return false
         }
@@ -1272,26 +1449,17 @@ var CombatMaster = CombatMaster || (function() {
             }
         }
 
-        if (initiative.rollInitiative == 'CombatMaster') {
+        if (initiative.rollInitiative == 'CombatMaster' && !state[combatState].config.hold.held) {
             selectedTokens.forEach(token => {
                 if (token._type == 'graphic') {
                     tokenObj        = getObj('graphic', token._id)
-                    whisper         = (tokenObj.layer == 'gmlayer') ? 'gm ' : ''
-                    characterObj    = getObj('character', tokenObj.get('represents'))
-        
-    				if (!characterObj) {
-                         makeAndSendMenu('A token was found not assigned to a character sheet',' ', whisper);   
-                    } 
-                    // else {  
-                    //     initAttributes  = initiative.initiativeAttributes.split(';')
-                    //     log(initAttributes)
-                    //     initAttributes.forEach((attributes) => {
-                    //         attribute  = getAttrByName(characterObj.id,attributes,'current') 
-                    //         if (!attribute) {
-                    //             makeAndSendMenu('Initiative Attribute ' + attributes + ' not found on character sheet',' ', whisper);  
-                    //         }                       
-                    //     })
-                    // }    
+                    if (tokenObj) {
+                        whisper         = (tokenObj.layer == 'gmlayer') ? 'gm ' : ''
+                        characterObj    = getObj('character', tokenObj.get('represents'))
+        				if (!characterObj) {
+                             makeAndSendMenu('A token was found not assigned to a character sheet',' ', whisper);   
+                        } 
+                    }    
                 }    
 			})    
         }  
@@ -1299,63 +1467,141 @@ var CombatMaster = CombatMaster || (function() {
         return verified
     },
 
-    startCombat = function (selectedTokens) {
-        let verified, initiative = state[combatState].config.initiative, turnorder=state[combatState].config.turnorder
-        
+    startCombat = function (selectedTokens, who) {
         if (debug) {
             log('Start Combat')
         }
-
-        verified = verifySetup(selectedTokens, initiative)
-        if (!verified) {
+        
+        let initiative  = state[combatState].config.initiative
+        let turnorder   = state[combatState].config.turnorder
+        let verified    = verifySetup(selectedTokens, initiative)
+        let hold        = state[combatState].config.hold
+        
+        if (!verified && !hold.held) {
             return
         }
-
-        paused = false;
+        
         Campaign().set('initiativepage', Campaign().get('playerpageid'));
-        
-        
-        if(initiative.rollInitiative == 'CombatMaster'){
-            rollInitiative(selectedTokens, initiative);
-        } else if (initiative.rollInitiative == 'Group-Init') {
-            rollGroupInit(selectedTokens)
-        } else if (!getTurnorder()) {
-            makeAndSendMenu('You must have a populated turnorder before starting Combat Master','');    
-        }
+        paused = false;
 
+        if (hold.held) {
+            restartCombat(hold, who)
+        } else {
+            if(initiative.rollInitiative == 'CombatMaster'){
+                rollInitiative(selectedTokens, initiative);
+            } else if (initiative.rollInitiative == 'Group-Init') {
+                rollGroupInit(selectedTokens)
+            } else if (!getTurnorder()) {
+                makeAndSendMenu('You must have a populated turnorder before starting Combat Master','');    
+                return
+            }
+        }  
+        
         setTimeout(function() {
             doRoundCalls()
             doTurnorderChange()
-        },500) 
+        },2000) 
+        
+        log(hold)
     },
     
-    stopCombat = function () {
+    restartCombat = function (hold,who) {
+        if (debug) {
+            log('Restart Combat')
+        }
+
+        round = hold.round;
+        setTurnorder(hold.turnorder);
+
+        let tokenObj
+        let icon
+
+        [...hold.conditions].forEach((condition, i) => {
+            tokenObj = getObj('graphic', condition.id)
+            if (tokenObj) {
+                addConditionToToken(tokenObj,condition.key,condition.duration,condition.direction,condition.message);
+                icon = getIconTag(condition.iconType, condition.icon)
+                condition.target.forEach((target) => {
+                    addMarker(getObj('graphic', target),icon)
+                }) 
+            } 
+        }) 
+ 
+        setTimeout(function() {
+            clearHold(hold)
+            sendMainMenu(who)
+        },2000) 
+    },
+    
+    stopCombat = function (who) {
         if (debug) {
             log('Stop Combat')
         }
-        
-        if(timerObj) timerObj.remove();
 
+        clearHold(state[combatState].config.hold)
+        
         if (state[combatState].config.status.clearConditions) {
-            state[combatState].conditions.forEach((condition) => {
+            [...state[combatState].conditions].forEach((condition) => {
+                if (condition.id != getOrCreateMarker(true).get('id') && condition.id != getOrCreateMarker(false).get('id')) {
+                    removeConditionFromToken(getObj('graphic',condition.id), condition.key)
+                }  
+            }) 
+        }           
+        
+        removeMarkers();
+        stopTimer();
+        Campaign().set({initiativepage:false,turnorder:''});     
+        round = 1;
+        
+        setTimeout(function() {
+            sendMainMenu(who)
+            state[combatState].conditions = [];
+        },2000)         
+        
+    },
+    
+    holdCombat = function (who) {
+        if (debug) {
+            log('Hold Combat')
+        }
+        
+        let hold        = state[combatState].config.hold
+        hold.held       = true;
+        hold.turnorder  = getTurnorder();
+        hold.round      = round;
+        hold.conditions = [...state[combatState].conditions]
+        
+        if (state[combatState].config.status.clearConditions) {
+            [...state[combatState].conditions].forEach((condition) => {
                 if (condition.id != getOrCreateMarker(true).get('id') && condition.id != getOrCreateMarker(false).get('id')) {
                     removeConditionFromToken(getObj('graphic',condition.id), condition.key)
                 }  
             }) 
         }   
         
-        state[combatState].conditions = [];
-        removeMarkers();
-        stopTimer();
-        paused = false;
-        Campaign().set({
-            initiativepage: false,
-            turnorder: ''
-        });
-        state[combatState].turnorder = {};
-        round = 1;
+        
+        Campaign().set({initiativepage:false,turnorder:''});     
+        pauseTimer()
+            
+        setTimeout(function() {
+            state[combatState].conditions = [];
+            sendMainMenu(who)
+        },2000)   
+        
+        log(hold)
     },
 
+    clearHold = function (hold) {
+        if (debug) {
+            log('Clear Hold')
+        }
+        
+        hold.held = false
+        hold.round = 1
+        hold.turnorder = []
+        hold.conditions = []
+    },
+    
     rollInitiative = function (selectedTokens, initiative) {
         let tokenObj, whisper, initiativeTemp, initiativeRoll, characterObj, initAttributes, initiativeMod, i, advantageAttrib, initiativeAdv1, initiativeAdv2
         
@@ -1363,56 +1609,58 @@ var CombatMaster = CombatMaster || (function() {
         selectedTokens.forEach(token => {
             if (token._type == 'graphic') {
                 tokenObj        = getObj('graphic', token._id)
-                characterObj    = getObj('character', tokenObj.get('represents'))
-
-                if (characterObj) {
-                    whisper         = (tokenObj.get('layer') === 'gmlayer') ? 'gm ' : ''
-                    initiativeRoll  = (initiative.initiativeDie) ? randomInteger(initiative.initiativeDie) : 0;
-                    initAttributes  = initiative.initiativeAttributes.split(',')
-                    initiativeMod   = 0
-
-                    initAttributes.forEach((attributes) => {
-                        initiativeTemp  = getAttrByName(characterObj.id,attributes,'current') 
-                        initiativeMod  += parseFloat(initiativeTemp)                        
-                    })
-
-                    //check for advantage initiative rolling (OGL)
-                    advantageAttrib   = getAttrByName(characterObj.id, 'initiative_style', 'current');  
-                    if (typeof advantageAttrib != 'undefined') {
-                        // roll advantage for initiative
-                        initiativeAdv1 = (initiative.initiativeDie) ? randomInteger(initiative.initiativeDie) : 0; 
-                        initiativeAdv2 = (initiative.initiativeDie) ? randomInteger(initiative.initiativeDie) : 0;
-                        // this is the value if in OGL if rolling advantage
-                        if (advantageAttrib == '{@{d20},@{d20}}kh1') {
-                            //determine which value is higher
-                            if (initiativeAdv1 >= initiativeAdv2) {
+                if (tokenObj) {
+                    characterObj    = getObj('character', tokenObj.get('represents'))
+    
+                    if (characterObj) {
+                        whisper         = (tokenObj.get('layer') === 'gmlayer') ? 'gm ' : ''
+                        initiativeRoll  = (initiative.initiativeDie) ? randomInteger(initiative.initiativeDie) : 0;
+                        initAttributes  = initiative.initiativeAttributes.split(',')
+                        initiativeMod   = 0
+    
+                        initAttributes.forEach((attributes) => {
+                            initiativeTemp  = getAttrByName(characterObj.id,attributes,'current') 
+                            initiativeMod  += parseFloat(initiativeTemp)                        
+                        })
+    
+                        //check for advantage initiative rolling (OGL)
+                        advantageAttrib   = getAttrByName(characterObj.id, 'initiative_style', 'current');  
+                        if (typeof advantageAttrib != 'undefined') {
+                            // roll advantage for initiative
+                            initiativeAdv1 = (initiative.initiativeDie) ? randomInteger(initiative.initiativeDie) : 0; 
+                            initiativeAdv2 = (initiative.initiativeDie) ? randomInteger(initiative.initiativeDie) : 0;
+                            // this is the value if in OGL if rolling advantage
+                            if (advantageAttrib == '{@{d20},@{d20}}kh1') {
+                                //determine which value is higher
+                                if (initiativeAdv1 >= initiativeAdv2) {
+                                    initiativeRoll = initiativeAdv1
+                                } else {
+                                    initiativeRoll = initiativeAdv2
+                                }
+                                //pass in both values and modifier for display
+                                if (initiative.showInitiative) {
+                                    sendInitiativeChat(tokenObj.get('name'),initiativeAdv1,initiativeMod,initiativeAdv2,whisper)                            
+                                }
+                            } else if (initiative.showInitiative) { 
+                                // if not rolling advantage, use first roll
                                 initiativeRoll = initiativeAdv1
-                            } else {
-                                initiativeRoll = initiativeAdv2
-                            }
-                            //pass in both values and modifier for display
-                            if (initiative.showInitiative) {
-                                sendInitiativeChat(tokenObj.get('name'),initiativeAdv1,initiativeMod,initiativeAdv2,whisper)                            
-                            }
-                        } else if (initiative.showInitiative) { 
-                            // if not rolling advantage, use first roll
-                            initiativeRoll = initiativeAdv1
-                            sendInitiativeChat(tokenObj.get('name'),initiativeRoll,initiativeMod,null,whisper)                              
+                                sendInitiativeChat(tokenObj.get('name'),initiativeRoll,initiativeMod,null,whisper)                              
+                            }    
+                        }  else if (initiative.showInitiative) { 
+                            // if everything else then pass in for display
+                             sendInitiativeChat(tokenObj.get('name'),initiativeRoll,initiativeMod,null,whisper)   
+                        }  
+                        //add to turnorder 
+                        if (Number.isInteger(initiativeMod+initiativeRoll)) {
+                            addToTurnorder({id:tokenObj.id,pr:(initiativeMod+initiativeRoll),custom:'',pageid:tokenObj.get("pageid")});
+                        } else {
+                            addToTurnorder({id:tokenObj.id,pr:(initiativeMod+initiativeRoll).toFixed(2),custom:'',pageid:tokenObj.get("pageid")});
                         }    
-                    }  else if (initiative.showInitiative) { 
-                        // if everything else then pass in for display
-                         sendInitiativeChat(tokenObj.get('name'),initiativeRoll,initiativeMod,null,whisper)   
-                    }  
-                    //add to turnorder 
-                    if (Number.isInteger(initiativeMod+initiativeRoll)) {
-                        addToTurnorder({id:tokenObj.id,pr:(initiativeMod+initiativeRoll),custom:'',pageid:tokenObj.get("pageid")});
-                    } else {
-                        addToTurnorder({id:tokenObj.id,pr:(initiativeMod+initiativeRoll).toFixed(2),custom:'',pageid:tokenObj.get("pageid")});
-                    }    
-                }   
+                    }   
+                }    
             }    
         });
-        // sort turnorder if set
+
         if(state[combatState].config.turnorder.sortTurnOrder){
             sortTurnorder();
         }
@@ -1472,9 +1720,7 @@ var CombatMaster = CombatMaster || (function() {
     addMarker = function(tokenObj, marker, duration) {
         if (debug) {
             log('Add Marker')
-            log('Id:' + tokenObj.get("_id"))
-            log('Marker:' + marker)
-            log('Duration:' + duration)
+            log(marker)
         }
         
         let exists
@@ -1486,7 +1732,7 @@ var CombatMaster = CombatMaster || (function() {
         } else {
             statusmarkers = []
         } 
-        log(statusmarkers)
+
         if (duration) {
             statusmarker = marker+'@'+duration
         } else {
@@ -1494,8 +1740,6 @@ var CombatMaster = CombatMaster || (function() {
         }
 
         [...statusmarkers].forEach((a, i) => {
-            log(a.indexOf(marker))
-            
             if (a.indexOf(marker) > -1) {
                 statusmarkers.splice(i,0)
                 exists = true
@@ -1507,14 +1751,12 @@ var CombatMaster = CombatMaster || (function() {
         }
         
         tokenObj.set('statusmarkers', statusmarkers.join())
-        log('Status:'+tokenObj.get('statusmarkers'))
-        log('Id:' + tokenObj.get("_id"))
+        log(tokenObj)
     },
 
     removeMarker = function(tokenObj, marker) {
         if (debug) {
             log('Remove Marker')
-            log('Marker:' + marker)
         }
         
         let statusmarkers = tokenObj.get('statusmarkers').split(',');
@@ -1526,6 +1768,8 @@ var CombatMaster = CombatMaster || (function() {
         });       
 
         tokenObj.set('statusmarkers', statusmarkers.join())
+        log(tokenObj)
+        
     },
     
     resetMarker = function (next=false) {
@@ -1673,11 +1917,6 @@ var CombatMaster = CombatMaster || (function() {
 
                 var prevstatusmarkers = prev.statusmarkers.split(",");
                 var newstatusmarkers = obj.get('statusmarkers').split(",");
-                
-                if (debug) {
-                    log('New Statuses:'+newstatusmarkers)
-                    log('Old Statuses:'+prevstatusmarkers)
-                }
 
                 if (prevstatusmarkers.length > 0) {
                     prevstatusmarkers.forEach((marker) => {
@@ -1711,14 +1950,34 @@ var CombatMaster = CombatMaster || (function() {
         state[combatState].turnorder = {};
     },
 
-    doTurnorderChange = function (prev=false, delay=false) {
-        let turn        = getCurrentTurn(),
-            marker      = getOrCreateMarker(),
-            tokenObj    = getObj('graphic', turn.id);
-
+    verifyTurnorder = function () {
         if(debug) {
-            log('Turn Order Change')
+            log('Verify Turnorder')
+        }        
+        let turnorder = getTurnorder()
+
+        if (turnorder.length == 0) {
+            makeAndSendMenu('The Turnorder is empty.  Combat not started',null,'gm');
+            stopCombat()
+            return false
         }
+        
+        return true
+    },
+    
+    doTurnorderChange = function (prev=false, delay=false) {
+        if(debug) {
+            log('Do TurnOrder Change')
+        }
+        
+        let verified    = verifyTurnorder()
+        if (!verified) {
+            return
+        }
+        let turn        = getCurrentTurn()
+        let marker      = getOrCreateMarker()
+        let tokenObj    = getObj('graphic', turn.id)
+
         
         if (turn.id === '-1') { 
             doRoundCalls()
@@ -1793,7 +2052,6 @@ var CombatMaster = CombatMaster || (function() {
         });
 
         setTurnorder(turnorder);
-        doTurnorderChange();
     },
 
     getTurnorder = function () {
@@ -1812,7 +2070,7 @@ var CombatMaster = CombatMaster || (function() {
         setTurnorder(turnorder);
     },
 
-    setTurnorder = (turnorder) => {
+    setTurnorder = function (turnorder) {
         Campaign().set('turnorder', JSON.stringify(turnorder));
     },
 
@@ -1842,8 +2100,6 @@ var CombatMaster = CombatMaster || (function() {
         
         if (debug) {
             log('Delay Turn')
-            log('Current:' + currentTurn)
-            log('Next:'+nextTurn)
         }
         
         turnorder.unshift(currentTurn)
@@ -1894,7 +2150,6 @@ var CombatMaster = CombatMaster || (function() {
         }
 
         if(initiative.rollEachRound){
-            log('Rolling Each Round')
             let turnorder = getTurnorder();
             clearTurnorder();
             checkMarkerturn(marker)
@@ -2016,21 +2271,21 @@ var CombatMaster = CombatMaster || (function() {
         let image       = (imgurl) ? '<img src="'+imgurl+'" width="50px" height="50px"  />' : ''
         name            = (state[combatState].config.announcements.handleLongName) ? handleLongString(name) : name
         
-        let title         = 'Next Player Up'
+        let title         = 'Conditions'
         let doneButton    = makeImageButton('!cmaster --turn,next',doneImage,'Done with Round','transparent',18,'white')
         let delayButton   = makeImageButton('!cmaster --turn,delay',delayImage,'Delay your Turn','transparent',18, 'white');
         
         if (!show) {
-            title   += '<div style="display:inline-block;float:right;vertical-aligh:middle">'+doneButton+'</div>'
-            title   += '<div style="display:inline-block;float:right;vertical-aligh:middle">'+delayButton+'</div>'
+            title   += '<div style="'+styles.buttonRight+'">'+doneButton+'</div>'
+            title   += '<div style="'+styles.buttonRight+'">'+delayButton+'</div>'
         }
 
-        let contents    = '<div style="display:inline-block;vertical-aligh:middle">'+image+'</div>'
+        let contents    = '<div style="'+styles.announcePlayer+'">'+image+'</div>'
         
         if (!show) {
-            contents   += '<div style="display:inline-block;vertical-aligh:middle">'+name+'\'s Turn</div>'
+            contents   += '<div style="'+styles.announcePlayer+'">'+name+'\'s Turn</div>'
         } else {
-            contents   += '<div style="display:inline-block;vertical-aligh:middle">'+name+'</div>'
+            contents   += '<div style="'+styles.announcePlayer+'">'+name+'</div>'
         }
         
         contents += conditions
@@ -2079,15 +2334,6 @@ var CombatMaster = CombatMaster || (function() {
         if (state[combatState].conditions) {
             [... state[combatState].conditions].forEach(condition => {
                 if (condition.id ==  tokenObj.get("_id")) {
-                    if (debug) {
-                        log('Condition:' + condition.key)
-                        log('Duration:'  + condition.duration)
-                        log('Direction:' + condition.direction)
-                        log('Delay:'     + delay)
-                        log('Prev:'      + prev)
-                        log('Show:'      + show)
-                    }            
-                    log(condition)
                     descriptionButton = makeButton(condition.name, '!cmaster --show,description,key='+condition.key) 
                     
                     if (!delay && !show) {
@@ -2141,6 +2387,17 @@ var CombatMaster = CombatMaster || (function() {
         sendChat(script_name, whisper + '<div style="'+styles.menu+styles.overflow+'">'+title+contents+'</div>', null, {noarchive:true});
     },
 
+    makeBanner = function (command,title,previous) {
+        let backButton = makeBigButton('Back', '!cmaster --back,'+previous)
+        let helpButton = makeImageButton('!cmaster --help,'+command,helpImage,'Help','transparent',18,'white')
+        let titleText  = title+' Setup'+'<span style='+styles.buttonRight+'>'+helpButton+'</span>'         
+        
+        return {
+            backButton,
+            titleText
+        };
+    },
+    
 	makeTitle = function (title) {
 		return '<div style="'+styles.title+'"><span style='+styles.titleText+'>'+title+'</span></div>'
 	},
@@ -2241,8 +2498,6 @@ var CombatMaster = CombatMaster || (function() {
     getIconTag = function (iconType,iconName) {
         if (debug) {
             log('Get Icon Tag')
-            log('Icon Type:' + iconType)
-            log('Icon Name:' + iconName)
         }
         
         let installed = verifyInstalls(iconType)
@@ -2250,18 +2505,13 @@ var CombatMaster = CombatMaster || (function() {
             return
         }
         
-        
         let iconTag = null
         if (iconType == 'Token Marker') {
             iconTag = libTokenMarkers.getStatus(iconName).getTag()
         } else if (iconType == 'Combat Master') {
             iconTag = iconName
         }    
-        
-        if (debug) {
-            log('Icon Tag:' + iconTag)
-        }  
-        
+
         return iconTag
     },
     
@@ -2281,38 +2531,44 @@ var CombatMaster = CombatMaster || (function() {
 //*************************************************************************************************************
     doRoundCalls = function () {
         if (debug) {
-            log("Do Turnorder External Calls")
+            log("Do Round Calls")
+        }
+
+        let verified    = verifyTurnorder()
+        if (!verified) {
+            return
         }
         
         let config     = state[combatState].config.turnorder 
         let turnorder  = getTurnorder()
         let tokenObj, characterObj, macro
-        
+
         turnorder.forEach((turn) => {
             if (turn.id !== getOrCreateMarker().get('id')) {
                 tokenObj     = getObj('graphic',turn.id)
-                characterObj = getObj('character',tokenObj.get('represents'))
-
-                if (characterObj) {
-                    if (!['None',''].includes(config.allRoundMacro)) {
-                        macro = getMacro(tokenObj, config.allRoundMacro)
-                        sendCalltoChat(tokenObj,characterObj,macro.get('action'))
+                if (tokenObj) {
+                    characterObj = getObj('character',tokenObj.get('represents'))
+    
+                    if (characterObj) {
+                        if (!['None',''].includes(config.allRoundMacro)) {
+                            macro = getMacro(tokenObj, config.allRoundMacro)
+                            sendCalltoChat(tokenObj,characterObj,macro.get('action'))
+                        }
+                        if ( !['None',''].includes(config.characterRoundMacro) && characterObj.get('controlledby') != '') {
+                            macro = getMacro(tokenObj, config.characterRoundMacro)
+                            sendCalltoChat(tokenObj,characterObj,macro.get('action'))
+                        }
+                        if (!['None',''].includes(config.roundAPI)) {
+                            sendCalltoChat(tokenObj,characterObj,config.roundAPI)
+                        }
+                        if (!['None',''].includes(config.roundRoll20AM)) {
+                            sendCalltoChat(tokenObj,characterObj,config.roundRoll20AM)
+                        }          
+                        if (!['None',''].includes(config.roundFX)) {
+                            doFX(tokenObj,config.roundFX)
+                        }                     
                     }
-                    log(characterObj.get('controlledby').length)
-                    if ( !['None',''].includes(config.characterRoundMacro) && characterObj.get('controlledby') != '') {
-                        macro = getMacro(tokenObj, config.characterRoundMacro)
-                        sendCalltoChat(tokenObj,characterObj,macro.get('action'))
-                    }
-                    if (!['None',''].includes(config.roundAPI)) {
-                        sendCalltoChat(tokenObj,characterObj,config.roundAPI)
-                    }
-                    if (!['None',''].includes(config.roundRoll20AM)) {
-                        sendCalltoChat(tokenObj,characterObj,config.roundRoll20AM)
-                    }          
-                    if (!['None',''].includes(config.roundFX)) {
-                        doFX(tokenObj,config.roundFX)
-                    }                     
-                }
+                }    
             }
         });
     },
@@ -2437,10 +2693,8 @@ var CombatMaster = CombatMaster || (function() {
     sendCalltoChat = function(tokenObj,characterObj,action) {
         if (debug) {
             log("sendCalltoChat")
-            log('Token:'+tokenObj.get('_id'))
-            log('Character:'+characterObj.get('name'))
         }
-        log(action)
+
         let substitutions = state[combatState].config.macro.substitutions
         let replaceString
         
@@ -2458,7 +2712,7 @@ var CombatMaster = CombatMaster || (function() {
                 }                  
             })
         } 
-        log(action)
+
         sendChat(tokenObj.get('name'), action, null, {noarchive:true});
     },
     
@@ -2491,7 +2745,7 @@ var CombatMaster = CombatMaster || (function() {
         }
         
         state[combatState].config.macro.substitutions.push(substitution)
-        log(state[combatState].config.macro.substitutions)
+        
 		sendMacroMenu();		
     },  
     
@@ -2507,7 +2761,258 @@ var CombatMaster = CombatMaster || (function() {
         })
 		sendMacroMenu();
     },      
-     
+//*************************************************************************************************************
+//SPELLS 
+//*************************************************************************************************************	  
+    handleSpellCast = function(msg) {
+        if (debug) {
+            log('Handle Spell Cast')
+            log(msg)
+        }
+        
+        let status          = state[combatState].config.status;
+        let concentration   = state[combatState].config.concentration;
+        let spellName
+        let description
+        let concentrate     = false
+        let spellLevel 
+
+        
+        if (status.sheet == 'OGL') {
+            spellName   = msg.content.match(/name=([^\n{}]*[^"\n{}])/);  
+            spellName   = RegExp.$1;     
+            description = msg.content.match(/description=([^\n{}]*[^"\n{}])/)  
+            description = RegExp.$1;  
+            spellLevel = msg.content.match(/spelllevel=([^\n{}]*[^"\n{}])/)  
+            spellLevel = RegExp.$1;  
+            log(spellLevel)
+
+            
+            if (msg.content.includes("{{concentration=1}}")) {
+                concentrate = true
+            } 
+            log(concentrate)
+            if (!spellLevel && !concentrate) {
+                return;
+            }            
+        } else if (status.sheet == 'Shaped') {
+            spellName    = msg.content.match(/title=([^\n{}]*[^"\n{}])/);  
+            spellName    = RegExp.$1;         
+            description  = msg.content.match(/content=([^\n{}]*[^"\n{}])/)  
+            description  = RegExp.$1;       
+            if (msg.content.includes("CONCENTRATION")) {
+                concentrate = true
+            }             
+        }   
+
+        if (!spellName) {
+            return
+        }
+        
+        if (debug) {
+            log('Spell Name:'+spellName)
+            log('Description:'+description)
+            log('Concentrate:'+concentrate)
+        }
+        if (!description) {
+            description = 'None'
+        }
+        
+        if (status.autoAddSpells) {     
+            let key = spellName.toLowerCase()
+            let condition = getConditionByKey(key)
+            if (typeof condition == 'undefined' && !getIgnoresByKey(key)) {
+                
+                state[combatState].spells[key] = {
+                				name: spellName,
+                				key: key,
+                				type: 'Spell',
+                				icon: 'red',
+                				iconType: 'Combat Master',
+                				description: description,
+                				duration: 1,
+                				direction: 0,
+                				message: 'None',
+                				targeted: false,
+                				favorite: false,
+                				concentration: concentrate,
+                				description: description,
+                				addAPI: 'None',
+                				addRoll20AM: 'None',
+                				addFX: 'None',
+                				addMacro: 'None',
+                				addPersistentMacro: false,
+                				remAPI: 'None',
+                				remRoll20AM: 'None',
+                				remFX: 'None',
+                				remMacro: 'None'				
+                } 
+			
+                let addSpellButton = makeBigButton(`Add Spell to Combat Master`, `!cmaster --spell,confirm=true,key=${key}`)
+                let ignoreSpellButton = makeBigButton(`Ignore this Spell`, `!cmaster --spell,confirm=false,key=${key}`)
+                makeAndSendMenu(`A new spell - ${spellName} - was detected<br>`+addSpellButton+ignoreSpellButton ,`New Spell Found`,`gm`)
+                
+            }  else if (condition) {
+                targetedSpell(key)
+                if (concentration.useConcentration && concentrate == true && condition.override == false) {     
+                    let characterName   = msg.content.match(/charname=([^\n{}]*[^"\n{}])/);            
+                    characterName       = RegExp.$1;
+                    let characterID     = findObjs({ name: characterName, _type: 'character' }).shift().get('id')    
+                    let tokenObj        = findObjs({ represents: characterID, _pageid:Campaign().get("playerpageid"), _type: 'graphic' })[0]
+                    addConditionToToken(tokenObj,'concentration',condition.duration,condition.direction,'Concentrating on ' + spellName)
+                }                   
+            }
+        }
+    },
+    
+    addSpell = function(key) {
+        if (debug) {
+            log('Add Spell')
+            log(key)
+        }        
+        state[combatState].config.conditions[key] = state[combatState].spells[key] 
+        let index = state[combatState].spells.indexOf(key);
+        if (index > -1) {
+            state[combatState].spells.splice(index, 1);
+        }
+        sendConditionMenu(key);
+    },
+ 
+    ignoreSpell = function(key) {
+        if (debug) {
+            log('Ignore Spell')
+            log(key)
+        }  
+        
+       state[combatState].ignores.push(key)
+       log(state[combatState].ignores)
+       makeAndSendMenu('Spell has been added to Ignore List','Spell Ignored','gm');
+    },
+    
+    getIgnoresByKey = function(key) {
+        if (debug) {
+            log('Get Ignores By Key')
+            log('Key:'+key)
+            log('Exists:'+state[combatState].ignores.includes(key))
+        }  
+        
+        if (state[combatState].ignores.includes(key)) {
+            return true
+        } else {
+            return false
+        }  
+    },
+//*************************************************************************************************************
+//SPELLS 
+//*************************************************************************************************************	  
+    handleConstitutionSave = function(obj, prev) {
+        if (debug) {
+            log('Handle Constitution Save')
+        }
+        
+        let tokenID = obj.get('id')
+        let found = false
+        state[combatState].conditions.forEach((condition) => {
+            if (condition.id == tokenID && condition.key == 'concentration') {
+                found = true
+            }
+        })
+        
+        if (!found) {
+            return;
+        }
+
+        let conditions = obj.get('statusmarkers').split(',')
+        let condition = state[combatState].conditions.map(id => obj.get('statusmarkers'))
+        let concentration = state[combatState].config.concentration
+        let bar = concentration.woundBar+'_value'
+        let target = concentration.notify
+
+        if(obj.get(bar) < prev[bar]) {
+            let calcDC = Math.floor((prev[bar] - obj.get(bar))/2)
+            let DC = (calcDC > 10) ? calcDC : 10
+            let conSave = parseInt(getAttrByName(obj.get('represents'), concentration.attribute, 'current')) || 0
+            let contents;
+
+            if(target === 'Character'){
+                contents = "Make a Concentration Check - <b>DC " + DC + "</b>.";
+                target = obj.get('name').split(' ').shift()
+            } else if(target === 'Everyone'){
+                contents = '<b>'+obj.get('name')+'</b> must make a Concentration Check - <b>DC ' + DC + '</b>.';
+                target = '';
+            }else{
+                contents = '<b>'+obj.get('name')+'</b> must make a Concentration Check - <b>DC ' + DC + '</b>.';
+                target = 'gm';
+            }
+            makeAndSendMenu(contents, '', target);
+            // if(concentration.autoRoll){
+            //     roll(obj.get('represents'), DC, conSave, obj.get('name'), target);
+            // }else{
+                // makeAndSendMenu(contents, '', target);
+            // }
+
+            // let length = checked.push(obj.get('represents'));
+            // setTimeout(() => {
+            //     checked.splice(length-1, 1);
+            // }, 1000);
+        }
+    },
+
+    // roll = (represents, DC, conSave, name, target) => {
+    //     sendChat(script_name, '[[1d20cf<'+(DC-con_save_mod-1)+'cs>'+(DC-con_save_mod-1)+'+'+con_save_mod+']]', results => {
+    //         let title = 'Concentration Save <br> <b style="font-size: 10pt; color: gray;">'+name+'</b>',
+    //             advantageRollResult;
+
+    //         let rollresult = results[0].inlinerolls[0].results.rolls[0].results[0].v;
+    //         let result = rollresult;
+
+    //         if(advantage){
+    //             advantageRollResult = randomInteger(20);
+    //             result = (rollresult <= advantageRollResult) ? advantageRollResult : rollresult;
+    //         }
+
+    //         let total = result + con_save_mod;
+
+    //         let success = total >= DC;
+
+    //         let result_text = (success) ? 'Success' : 'Failed',
+    //             result_color = (success) ? 'green' : 'red';
+
+    //         let rollResultString = (advantage) ? rollresult + ' / ' + advantageRollResult : rollresult;
+
+    //         let contents = ' \
+    //         <table style="width: 100%; text-align: left;"> \
+    //             <tr> \
+    //                 <th>DC</th> \
+    //                 <td>'+DC+'</td> \
+    //             </tr> \
+    //             <tr> \
+    //                 <th>Modifier</th> \
+    //                 <td>'+con_save_mod+'</td> \
+    //             </tr> \
+    //             <tr> \
+    //                 <th>Roll Result</th> \
+    //                 <td>'+rollResultString+'</td> \
+    //             </tr> \
+    //         </table> \
+    //         <div style="text-align: center"> \
+    //             <b style="font-size: 16pt;"> \
+    //                 <span style="border: 1px solid '+result_color+'; padding-bottom: 2px; padding-top: 4px;">[['+result+'+'+con_save_mod+']]</span><br><br> \
+    //                 '+result_text+' \
+    //             </b> \
+    //         </div>'
+    //         makeAndSendMenu(contents, title, target);
+
+    //         if(target !== '' && target !== 'gm'){
+    //             makeAndSendMenu(contents, title, 'gm');
+    //         }
+
+    //         if(!success){
+    //             removeMarker(represents);
+    //         }
+    //     });
+    // },    
+    
     inFight = function () {
         return (Campaign().get('initiativepage') !== false);
     },
@@ -2541,7 +3046,7 @@ var CombatMaster = CombatMaster || (function() {
 
     handeIniativePageChange = function (obj,prev) {
         if((obj.get('initiativepage') !== prev.initiativepage && !obj.get('initiativepage'))){
-            stopCombat();
+            //stopCombat();
         }
     },
 
@@ -2635,7 +3140,7 @@ var CombatMaster = CombatMaster || (function() {
             return s.replace(re, function(c){ return entities[c] || c; });
         };
     }()),
-    
+
     ucFirst = function (string) {
         return string.charAt(0).toUpperCase() + string.slice(1);
     },
@@ -2661,12 +3166,20 @@ var CombatMaster = CombatMaster || (function() {
         
         const combatDefaults = {
             conditions: [],
+            ignores: [],
+            spells: [],
 			config: {
                 command: 'cmaster',		
 				duration: false,
 				favorite: false,
 				previousPage: null,			
 				gmPlayerID: null,
+				hold: {
+				    held: false,
+				    turnorder: [],
+				    conditions: [],
+				    round: 1
+				},	
 				initiative: {
                     rollInitiative: 'CombatMaster',
                     initiativeDie: 20,
@@ -2726,11 +3239,23 @@ var CombatMaster = CombatMaster || (function() {
 					clearConditions: false,
 					showConditions: 'all',
 					useMessage: false,
+					access: 'None',
+					autoAddSpells: false,
+					sheet: 'OGL',
 				},	
+				concentration: {
+					useConcentration: false,
+					notify: 'GM',
+					autoAdd: false,
+					autoRoll: false,
+					woundBar: 'Bar1',
+					attribute: 'None'
+				},					
 			    conditions: {
 					blinded: {
 						name: 'Blinded',
 						key: 'blinded',
+						type: 'Condition',
 						description: '<p>A blinded creature cannot see and automatically fails any ability check that requires sight.</p> <p>Attack rolls against the creature have advantage, and the creature making Attack rolls have disadvantage.</p>',
 						icon: 'bleeding-eye',
 						iconType: 'Combat Master',
@@ -2740,6 +3265,7 @@ var CombatMaster = CombatMaster || (function() {
 						favorite: false,
 						message: 'None',
 						targeted: false,
+						concentration: false,
 						addAPI: 'None',
 						addRoll20AM: 'None',
 						addFX: 'None',
@@ -2753,6 +3279,7 @@ var CombatMaster = CombatMaster || (function() {
 					charmed: {
 						name: 'Charmed',
 						key: 'charmed',
+						type: 'Spell',
 						description: "<p>A charmed creature can't Attack the charmer or target the charmer with harmful Abilities or magical effects.</p> <p>The charmer has advantage on any ability check to interact socially with the creature.</p>",
 						icon: 'broken-heart',
 						iconType: 'Combat Master',
@@ -2762,6 +3289,7 @@ var CombatMaster = CombatMaster || (function() {
 						favorite: false,
 						message: 'None',
 						targeted: false,
+						concentration: false,
 						addAPI: 'None',
 						addRoll20AM: 'None',
 						addFX: 'None',
@@ -2772,9 +3300,34 @@ var CombatMaster = CombatMaster || (function() {
 						remFX: 'None',
 						remMacro: 'None',
 					},
+					concentration: {
+						name: 'Concentration',
+						key: 'concentration',
+						type: 'Spell',
+						description: "<p>In order to keep their magic active. If you lose concentration, such a spell ends. If a spell must be maintained with concentralion, that fact appears in its Duration entry, and the spell specifics how long you can concentrate on it. You can end concentration at any time (no action required)..</p>",
+						icon: 'trophy',
+						iconType: 'Combat Master',
+						duration: 1,
+						direction: 0,
+						override: true,
+						favorite: false,
+						message: 'None',
+						targeted: false,
+						concentration: false,
+						addAPI: 'None',
+						addRoll20AM: 'None',
+						addFX: 'None',
+						addMacro: 'None',
+						addPersistentMacro: false,
+						remAPI: 'None',
+						remRoll20AM: 'None',
+						remFX: 'None',
+						remMacro: 'None',
+					},					
 					deafened: {
 						name: 'Deafened',
 						key: 'deafened',
+						type: 'Condition',
 						description: "<p>A deafened creature can't hear and automatically fails any ability check that requires hearing.</p>",
 						icon: 'edge-crack',
 						iconType: 'Combat Master',
@@ -2784,6 +3337,7 @@ var CombatMaster = CombatMaster || (function() {
 						favorite: false,
 						message: 'None',
 						targeted: false,
+						concentration: false,
 						addAPI: 'None',
 						addRoll20AM: 'None',
 						addFX: 'None',
@@ -2797,6 +3351,7 @@ var CombatMaster = CombatMaster || (function() {
 					frightened: {
 						name: 'Frightened',
 						key: 'frightened',
+						type: 'Condition',
 						description: "<p>A frightened creature has disadvantage on Ability Checks and Attack rolls while the source of its fear is within line of sight.</p> <p>The creature can't willingly move closer to the source of its fear.</p>",
 						icon: 'screaming',
 						iconType: 'Combat Master',
@@ -2806,6 +3361,7 @@ var CombatMaster = CombatMaster || (function() {
 						favorite: false,
 						message: 'None',
 						targeted: false,
+						concentration: false,
 						addAPI: 'None',
 						addRoll20AM: 'None',
 						addFX: 'None',
@@ -2819,7 +3375,8 @@ var CombatMaster = CombatMaster || (function() {
 					grappled: {
 						name: 'Grappled',
 						key: 'grappled',
-						description: "<p>A grappled creature's speed becomes 0, and it canÃ¢â‚¬â„¢t benefit from any bonus to its speed.</p> <p>The condition ends if the Grappler is <i>incapacitated</i>.</p> <p>The condition also ends if an effect removes the grappled creature from the reach of the Grappler or Grappling effect, such as when a creature is hurled away by the Thunderwave spell.</p>",
+						type: 'Condition',
+						description: "<p>A grappled creature's speed becomes 0, and it can't benefit from any bonus to its speed.</p> <p>The condition ends if the Grappler is <i>incapacitated</i>.</p> <p>The condition also ends if an effect removes the grappled creature from the reach of the Grappler or Grappling effect, such as when a creature is hurled away by the Thunderwave spell.</p>",
 						icon: 'grab',
 						iconType: 'Combat Master',
 						duration: 1,
@@ -2828,6 +3385,7 @@ var CombatMaster = CombatMaster || (function() {
 						favorite: false,
 						message: 'None',
 						targeted: false,
+						concentration: false,
 						addAPI: 'None',
 						addRoll20AM: 'None',
 						addFX: 'None',
@@ -2841,6 +3399,7 @@ var CombatMaster = CombatMaster || (function() {
 					incapacitated: {
 						name: 'Incapacitated',
 						key: 'incapacitated',
+						type: 'Condition',
 						description: "<p>An incapacitated creature can't take actions or reactions.</p>",
 						icon: 'interdiction',
 						iconType: 'Combat Master',
@@ -2850,6 +3409,7 @@ var CombatMaster = CombatMaster || (function() {
 						favorite: false,
 						message: 'None',
 						targeted: false,
+						concentration: false,
 						addAPI: 'None',
 						addRoll20AM: 'None',
 						addFX: 'None',
@@ -2863,6 +3423,7 @@ var CombatMaster = CombatMaster || (function() {
 					inspiration: {
 						name: 'Inspiration',
 						key: 'inspiration',
+						type: 'Spell',
 						description: "<p>If you have inspiration, you can expend it when you make an Attack roll, saving throw, or ability check. Spending your inspiration gives you advantage on that roll.</p> <p>Additionally, if you have inspiration, you can reward another player for good roleplaying, clever thinking, or simply doing something exciting in the game. When another player character does something that really contributes to the story in a fun and interesting way, you can give up your inspiration to give that character inspiration.</p>",
 						icon: 'black-flag',
 						iconType: 'Combat Master',
@@ -2872,6 +3433,7 @@ var CombatMaster = CombatMaster || (function() {
 						favorite: false,
 						message: 'None',
 						targeted: false,
+						concentration: false,
 						addAPI: 'None',
 						addRoll20AM: 'None',
 						addFX: 'None',
@@ -2885,6 +3447,7 @@ var CombatMaster = CombatMaster || (function() {
 					invisibility: {
 						name: 'Invisibility',
 						key: 'invisibility',
+						type: 'Spell',
 						description: "<p>An invisible creature is impossible to see without the aid of magic or a Special sense. For the purpose of Hiding, the creature is heavily obscured. The creature's location can be detected by any noise it makes or any tracks it leaves.</p> <p>Attack rolls against the creature have disadvantage, and the creature's Attack rolls have advantage.</p>",
 						icon: 'ninja-mask',
 						iconType: 'Combat Master',
@@ -2894,6 +3457,7 @@ var CombatMaster = CombatMaster || (function() {
 						favorite: false,
 						message: 'None',
 						targeted: false,
+						concentration: false,
 						addAPI: 'None',
 						addRoll20AM: 'None',
 						addFX: 'None',
@@ -2907,6 +3471,7 @@ var CombatMaster = CombatMaster || (function() {
 					paralyzed: {
 						name: 'Paralyzed',
 						key: 'paralyzed',
+						type: 'Condition',
 						description: "<p>A paralyzed creature is <i>incapacitated</i> and can't move or speak.</p> <p>The creature automatically fails Strength and Dexterity saving throws.</p> <p>Attack rolls against the creature have advantage.</p> <p>Any Attack that hits the creature is a critical hit if the attacker is within 5 feet of the creature.</p>",
 						icon: 'pummeled',
 						iconType: 'Combat Master',
@@ -2916,6 +3481,7 @@ var CombatMaster = CombatMaster || (function() {
 						favorite: false,
 						message: 'None',
 						targeted: false,
+						concentration: false,
 						addAPI: 'None',
 						addRoll20AM: 'None',
 						addFX: 'None',
@@ -2929,6 +3495,7 @@ var CombatMaster = CombatMaster || (function() {
 					petrified: {
 						name: 'Petrified',
 						key: 'petrified',
+						type: 'Condition',
 						description: "<p>A petrified creature is transformed, along with any nonmagical object it is wearing or carrying, into a solid inanimate substance (usually stone). Its weight increases by a factor of ten, and it ceases aging.</p> <p>The creature is <i>incapacitated</i>, can't move or speak, and is unaware of its surroundings.</p> <p>Attack rolls against the creature have advantage.</p> <p>The creature automatically fails Strength and Dexterity saving throws.</p> <p>The creature has Resistance to all damage.</p> <p>The creature is immune to poison and disease, although a poison or disease already in its system is suspended, not neutralized.</p>",
 						icon: 'frozen-orb',
 						iconType: 'Combat Master',
@@ -2938,6 +3505,7 @@ var CombatMaster = CombatMaster || (function() {
 						favorite: false,
 						message: 'None',
 						targeted: false,
+						concentration: false,
 						addAPI: 'None',
 						addRoll20AM: 'None',
 						addFX: 'None',
@@ -2951,6 +3519,7 @@ var CombatMaster = CombatMaster || (function() {
 					poisoned: {
 						name: 'Poisoned',
 						key: 'poisoned',
+						type: 'Condition',
 						description: '<p>A poisoned creature has disadvantage on Attack rolls and Ability Checks.</p>',
 						icon: 'chemical-bolt',
 						iconType: 'Combat Master',
@@ -2960,6 +3529,7 @@ var CombatMaster = CombatMaster || (function() {
 						favorite: false,
 						message: 'None',
 						targeted: false,
+						concentration: false,
 						addAPI: 'None',
 						addRoll20AM: 'None',
 						addFX: 'None',
@@ -2973,6 +3543,7 @@ var CombatMaster = CombatMaster || (function() {
 					prone: {
 						name: 'Prone',
 						key: 'prone',
+						type: 'Condition',
 						description: "<p>A prone creature's only Movement option is to crawl, unless it stands up and thereby ends the condition.</p> <p>The creature has disadvantage on Attack rolls.</p> <p>An Attack roll against the creature has advantage if the attacker is within 5 feet of the creature. Otherwise, the Attack roll has disadvantage.</p>",
 						icon: 'back-pain',
 						iconType: 'Combat Master',
@@ -2982,6 +3553,7 @@ var CombatMaster = CombatMaster || (function() {
 						favorite: false,
 						message: 'None',
 						targeted: false,
+						concentration: false,
 						addAPI: 'None',
 						addRoll20AM: 'None',
 						addFX: 'None',
@@ -2995,6 +3567,7 @@ var CombatMaster = CombatMaster || (function() {
 					restrained: {
 						name: 'Restrained',
 						key: 'restrained',
+						type: 'Condition',
 						description: "<p>A restrained creature's speed becomes 0, and it can't benefit from any bonus to its speed.</p> <p>Attack rolls against the creature have advantage, and the creature's Attack rolls have disadvantage.</p> <p>The creature has disadvantage on Dexterity saving throws.</p>",
 						icon: 'fishing-net',
 						iconType: 'Combat Master',
@@ -3004,6 +3577,7 @@ var CombatMaster = CombatMaster || (function() {
 						favorite: false,
 						message: 'None',
 						targeted: false,
+						concentration: false,
 						addAPI: 'None',
 						addRoll20AM: 'None',
 						addFX: 'None',
@@ -3017,6 +3591,7 @@ var CombatMaster = CombatMaster || (function() {
 					stunned: {
 						name: 'Stunned',
 						key: 'stunned',
+						type: 'Condition',
 						description: "<p>A stunned creature is <i>incapacitated</i>, can't move, and can speak only falteringly.</p> <p>The creature automatically fails Strength and Dexterity saving throws.</p> <p>Attack rolls against the creature have advantage.</p>",
 						icon: 'fist',
 						iconType: 'Combat Master',
@@ -3026,6 +3601,7 @@ var CombatMaster = CombatMaster || (function() {
 						favorite: false,
 						message: 'None',
 						targeted: false,
+						concentration: false,
 						addAPI: 'None',
 						addRoll20AM: 'None',
 						addFX: 'None',
@@ -3039,6 +3615,7 @@ var CombatMaster = CombatMaster || (function() {
 					unconscious: {
 						name: 'Unconscious',
 						key: 'unconscious',
+						type: 'Condition',
 						description: "<p>An unconscious creature is <i>incapacitated</i>, can't move or speak, and is unaware of its surroundings.</p> <p>The creature drops whatever it's holding and falls prone.</p> <p>The creature automatically fails Strength and Dexterity saving throws.</p> <p>Attack rolls against the creature have advantage.</p> <p>Any Attack that hits the creature is a critical hit if the attacker is within 5 feet of the creature.</p>",
 						icon: 'sleepy',
 						iconType: 'Combat Master',
@@ -3048,6 +3625,7 @@ var CombatMaster = CombatMaster || (function() {
 						favorite: false,
 						message: 'None',
 						targeted: false,
+						concentration: false,
 						addAPI: 'None',
 						addRoll20AM: 'None',
 						addFX: 'None',
@@ -3076,7 +3654,22 @@ var CombatMaster = CombatMaster || (function() {
 			if(!state[combatState].config.hasOwnProperty('previousPage')){
 				state[combatState].config.previousPage = combatDefaults.config.previousPage;
 			}  
-				
+            if(!state[combatState].config.hasOwnProperty('hold')){
+                state[combatState].config.hold = combatDefaults.config.hold;
+            } else {
+                if(!state[combatState].config.hold.hasOwnProperty('held')){
+                    state[combatState].config.hold.held = combatDefaults.config.hold.held;    
+                }                 
+                if(!state[combatState].config.hold.hasOwnProperty('turnorder')){
+                    state[combatState].config.hold.turnorder = combatDefaults.config.hold.turnorder;    
+                }  
+                if(!state[combatState].config.hold.hasOwnProperty('conditions')){
+                    state[combatState].config.hold.conditions = combatDefaults.config.hold.conditions;    
+                }    
+                if(!state[combatState].config.hold.hasOwnProperty('round')){
+                    state[combatState].config.hold.round = combatDefaults.config.hold.round;    
+                }                    
+            }				
             if(!state[combatState].config.hasOwnProperty('initiative')){
                 state[combatState].config.initiative = combatDefaults.config.initiative;
             } else {		
@@ -3159,7 +3752,7 @@ var CombatMaster = CombatMaster || (function() {
                 if(!state[combatState].config.turnorder.hasOwnProperty('characterRoundMacro')){
                     state[combatState].config.turnorder.characterRoundMacro = combatDefaults.config.turnorder.characterRoundMacro;
                 }     
-                if(!state[combatState].config.turnorder.hasOwnProperty('allRoundMacro')){
+                if(!state[combatState].config.turnorder.hasOwnProperty('allRoundMacrFhando')){
                     state[combatState].config.turnorder.allRoundMacro = combatDefaults.config.turnorder.allRoundMacro;
                 }          
             }
@@ -3233,25 +3826,67 @@ var CombatMaster = CombatMaster || (function() {
 					state[combatState].config.status.clearConditions = combatDefaults.config.status.clearConditions;
 				}      
 				if(!state[combatState].config.status.hasOwnProperty('useMessage')){
-				    log('use message')
 					state[combatState].config.status.useMessage = combatDefaults.config.status.useMessage;
 				}
 				if(!state[combatState].config.status.hasOwnProperty('showConditions')){
 					state[combatState].config.status.showConditions = combatDefaults.config.status.showConditions;
 				}	
+				if(!state[combatState].config.status.hasOwnProperty('access')){
+					state[combatState].config.status.access = combatDefaults.config.status.access;
+				}	
+				if(!state[combatState].config.status.hasOwnProperty('autoAddSpells')){
+					state[combatState].config.status.autoAddSpells = combatDefaults.config.status.autoAddSpells;
+				}	
+				if(!state[combatState].config.status.hasOwnProperty('sheet')){
+					state[combatState].config.status.sheet = combatDefaults.config.status.sheet;
+				}				
             }
+            
+			if(!state[combatState].config.hasOwnProperty('concentration')) {
+				state[combatState].config.concentration = combatDefaults.config.concentration;
+			} else {
+				if(!state[combatState].config.concentration.hasOwnProperty('useConcentration')){
+					state[combatState].config.concentration.useConcentration = combatDefaults.config.concentration.useConcentration;
+				}
+				if(!state[combatState].config.concentration.hasOwnProperty('notify')){
+					state[combatState].config.concentration.notify = combatDefaults.config.concentration.notify;
+				}      
+				if(!state[combatState].config.concentration.hasOwnProperty('autoAdd')){
+					state[combatState].config.concentration.autoAdd = combatDefaults.config.concentration.autoAdd;
+				}
+				if(!state[combatState].config.concentration.hasOwnProperty('autoRoll')){
+					state[combatState].config.concentration.autoRoll = combatDefaults.config.concentration.autoRoll;
+				}
+				if(!state[combatState].config.concentration.hasOwnProperty('woundBar')){
+					state[combatState].config.concentration.woundBar = combatDefaults.config.concentration.woundBar;
+				}	
+				if(!state[combatState].config.concentration.hasOwnProperty('attribute')){
+					state[combatState].config.concentration.attribute = combatDefaults.config.concentration.attribute;
+				}					
+            }            
         }
         
         if(!state[combatState].hasOwnProperty('conditions')){
             state[combatState].conditions = [];
         } 
 
+        if(!state[combatState].hasOwnProperty('ignores')){
+            state[combatState].ignores = [];
+        } 
+
+        if(!state[combatState].hasOwnProperty('spells')){
+            state[combatState].spells = [];
+        } 
+        
         if(state[combatState].config.hasOwnProperty('conditions') && !reset){        
             for (key in state[combatState].config.conditions) {
                 condition = getConditionByKey(key)
                 if (!condition.hasOwnProperty('key')) {
                     condition.key = key
-                }                
+                }  
+                if (!condition.hasOwnProperty('type')) {
+                    condition.type = 'Condition'
+                }                  
                 if (!condition.hasOwnProperty('duration')) {
                     condition.duration = 1
                 }
@@ -3269,7 +3904,10 @@ var CombatMaster = CombatMaster || (function() {
                 }
                 if (!condition.hasOwnProperty('targeted')) {
                     condition.targeted = false
-                }                
+                }     
+                if (!condition.hasOwnProperty('concentration')) {
+                    condition.concentration = false
+                }                       
                 if (!condition.hasOwnProperty('iconType')) {
                     condition.iconType = 'Combat Master'
                 }   
@@ -3304,156 +3942,476 @@ var CombatMaster = CombatMaster || (function() {
         } else if (!state[combatState].config.hasOwnProperty('conditions') || reset) {    
             state[combatState].config.conditions = combatDefaults.config.conditions;
         }
+        
+        if (!state[combatState].config.conditions.hasOwnProperty('concentration')) {
+            state[combatState].config.conditions.concentration = combatDefaults.config.conditions.concentration;
+        }
+    },
+
+    showHelp = function(cmdDetails) {
+        let handout
+        let title
+        if (cmdDetails.details.held) {
+            title = 'Main Menu Held'
+        } else if (cmdDetails.details.started) {
+            title = 'Main Menu Started'
+        } else if (cmdDetails.details.stopped) {
+            title = 'Main Menu Stopped'
+        } else if (cmdDetails.details.setup) {
+            title = 'Setup Menu'
+        } else if (cmdDetails.details.initiative) {
+            title = 'Initiative Menu'
+        } else if (cmdDetails.details.turnorder) {
+            title = 'Turnorder Menu'
+        } else if (cmdDetails.details.timer) {
+            title = 'Timer Menu'
+        } else if (cmdDetails.details.announcements) {
+            title = 'Announcements Menu'
+        } else if (cmdDetails.details.macro) {
+            title = 'Macro & API Menu'
+        } else if (cmdDetails.details.status) {
+            title = 'Status Menu'
+        } else if (cmdDetails.details.concentration) {
+            title = 'Concentration Menu'            
+        } else if (cmdDetails.details.conditions) {
+            title = 'Conditions Menu'
+        } else if (cmdDetails.details.condition) {
+            title = 'Condition Menu'
+        } else if (cmdDetails.details.addAPI) {
+            title = 'Add API Menu'
+        } else if (cmdDetails.details.remAPI) {
+            title = 'Remove API Menu'            
+        } else if (cmdDetails.details.export) {
+            title = 'Export Menu'
+        } 
+        handout = findHandout(title) 
+        makeAndSendMenu(`<a href="http://journal.roll20.net/handout/${handout[0].id}">View Help</a>`,title,'gm')         
     },
     
-    buildHelp = function () {
+    buildHelp = function() {
+        log('Building Help')
+        
+        let mainStarted         = createHandout('Main Menu Started')
+        let mainStopped         = createHandout('Main Menu Stopped')
+        let mainHeld            = createHandout('Main Menu Held')
+        let menuSetup           = createHandout('Setup Menu')
+        let menuInitiative      = createHandout('Initiative Menu')
+        let menuTurnorder       = createHandout('Turnorder Menu')
+        let menuTimer           = createHandout('Timer Menu')
+        let menuAnnouncements   = createHandout('Announcements Menu')
+        let menuMacro           = createHandout('Macro & API Menu')
+        let menuStatus          = createHandout('Status Menu')
+        let menuConcentration   = createHandout('Concentration Menu')
+        let menuConditions      = createHandout('Conditions Menu')
+        let menuCondition       = createHandout('Condition Menu')
+        let menuAddAPI          = createHandout('Add API Menu')
+        let menuRemoveAPI       = createHandout('Remove API Menu')
+        let menuExport          = createHandout('Export Menu')
+        
+        setTimeout(function() {
+            buildMainMenuStarted(mainStarted,menuSetup.id,menuCondition.id)
+            buildMainMenuStopped(mainStopped,menuSetup.id,menuCondition.id)
+            buildMainMenuHeld(mainHeld,menuSetup.id,menuCondition.id)
+            buildSetupMenu(menuSetup,menuInitiative.id,menuTurnorder.id,menuTimer.id,menuAnnouncements.id,menuMacro.id,menuStatus.id,menuConcentration.id,menuConditions.id,menuExport.id)
+            buildInitiativeMenu(menuInitiative,menuSetup.id)
+            buildTurnorderMenu(menuTurnorder,menuSetup.id)
+            buildTimerMenu(menuTimer,menuSetup.id)
+            buildAnnouncementsMenu(menuAnnouncements,menuSetup.id)
+            buildMacroMenu(menuMacro,menuSetup.id)
+            buildStatusMenu(menuStatus,menuSetup.id)
+            buildConcentrationMenu(menuConcentration,menuSetup.id)
+            buildConditionsMenu(menuConditions,menuSetup.id)
+            buildConditionMenu(menuCondition,menuSetup.id)
+            buildAddAPIMenu(menuAddAPI)
+            buildRemoveAPIMenu(menuRemoveAPI)
+            buildExportMenu(menuExport)
+        },1000)    
+        
+    },
+    
+    findHandout = function (title) {
+        let handout = findObjs({_type:'handout', name:title})
+        
+        return handout
+    },
+    
+    createHandout = function (title) {
+        let handout = findHandout(title)
+
+        if (handout[0]) {
+            handout[0].remove()
+        }
+        
+        handout   = createObj('handout', {
+                        name:title,
+                        archived:true
+                    })
+        
+        return handout  
+    },
+
+    buildMainMenuStarted = function(handout,setupID,conditionID) {
         let notes
+        
+        notes = `<div class="content note-editor notes">
+                    <p>
+                        <img src="https://s3.amazonaws.com/files.d20.io/images/152155102/i5BnjEmv8VSsfpoK44jaKw/original.png?15953856105">
+                    </p>
+                    <h4><i>Started Combat (Green Bar)</i> - Icons in order from Left to Right </h4>
+                    <ul>
+                        <li><b>Stop Combat </b>— Ends Combat and clears Turnorder.</li>
+                        <li><b>Hold Combat </b>— Sets Combat to Hold and saves off everything for a restart</li>
+                        <li><b>Previous Player </b>— Sets Active Player to previous player in Turnorder</li>
+                        <li><b>Next Player </b>— Sets Active Player to Next Player in Turnorder</li>
+                        <li><b>Pause Timer </b>— Pauses Timer. Click again to restart Timer</li>
+                        <li><b>Stop Timer </b>— Stops Timer. Clears Timer.  Can't be restarted until next Combat</li>
+                        <li><b>Show Conditions </b>— Shows all Conditions assigned to all Players & NPCs</li>
+                        <li><b>Sort Turnorder </b>— Sorts Turnorder in ascending sequence</li>
+                        <li><b>Setup  </b>— Shows the <a href="http://journal.roll20.net/handout/${setupID}">Setup Menu</a></li>
+                    </ul>`
+        notes += buildMainConditions('https://s3.amazonaws.com/files.d20.io/images/133804430/JJ--U559pOgsd9UBpUb06g/original.png?15892970605',conditionID)
+        notes += `</div>`
 
-        notes = '<h2>Combat Master (Version 1.0)</h2><br>'  
-        notes += 'Combat Master is an API that helps manage a combat.  It can automatically roll initiative, marks the player currently active in the turn using a circular icon around the players token, centers the map on the active player, provides a timer for timed turns and enables quickly adding status conditions to the token.  It tracks the duration in rounds of that condition and automatically removes the condition when the condition is over.<br>'  
-        notes += '<br>'
-        notes += 'Combat Master has come from my prior work to combine Combat Tracker and Status Info by Robin Kuiper into a single script.  The changes in Combat Master include:<br>'
-        notes +=' -	A new command syntax<br>'
-        notes +=' -	A new and combined session state<br>'
-        notes +=' -	Addition of Messages that remain with the condition so GMs can add special information to the condition that’s displayed<br>' 
-        notes +=' -	Addition of call outs to various APIs to integrate and enhance the game experience<br>'
-        notes += '<br>'
-        notes += 'The largest change is integration with Macros and other APIs to provide flexibility:<br>' 
-        notes +=' -	Group Init (The Aaron)<br>'
-        notes +=' -	Token Mod (The Aaron)<br>'
-        notes +=' -	Token Marker (The Aaron)<br>'
-        notes +=' -	Token Conditions (surprise, The Aaron)<br>'
-        notes +=' -	Roll20 Audio Master (Not The Aaron…this one is mine)<br>'
-        notes += '<br>'
-        notes +='To start configuring Combat Master, type !cmaster –main in chat and click the cog icon at the top.'
-        notes += '<br>'
+        handout.set({notes:notes});    
+    },
+ 
+    buildMainMenuStopped = function(handout,setupID,conditionID) {
+        let notes
+        
+        notes = `<div class="content note-editor notes">
+                    <p>
+                        <img src="https://s3.amazonaws.com/files.d20.io/images/152155096/Yb0jQ-AqPsjXPAN4F0OHVA/original.png?15953856105">
+                    </p>
+                    <h4><i>Start Combat (Red Bar)</i> - Icons in order from Left to Right </h4>
+                    <ul>
+                        <li><b>Start Combat </b>— Starts up combat. Must have tokens selected if using CM to roll initiative.</li>
+                        <li><b>Setup </b>— Shows the <a href="http://journal.roll20.net/handout/${setupID}">Setup Menu</a>.</li>
+                    </ul>`
+        notes += buildMainConditions('https://s3.amazonaws.com/files.d20.io/images/133804645/pmJuadcB01opW3Lg8lyOYA/original.png?15892970725',conditionID)
+        notes += `</div>`
+                
+        handout.set({notes:notes});         
+    },
 
-        notes += '<h2>Setup</h2><br>'  
-        notes += '<b><i>There are too many configuration commands to list individually.  For those who want to edit Combat Master via macro, use the menus to the issue the command you want.  Go to the chat window and use the up-arrow key.  This will show the command that Combat Master last executed and you can copy it into a macro.</i></b><br>'  
-        notes += '<br>'
-        notes += '<b>Initiative</b> – Configure how Combat Master will roll Initiative<br>'
-        notes += '<b>Turnorder</b> – Cconfigure how the turnorder is managed<br>'
-        notes += '<b>Timer</b> – Configure a timer, length of turn time, and the display of the timer <br>'
-        notes += '<b>Announce</b> – Configure how the player turn is announced in chat or if players can assigned their own conditions<br>' 
-        notes += '<b>Status</b> – Configure how conditions are managed and displayed<br>'
-        notes += '<b>Conditions</b> – a list of conditions where you can add a new condition or edit an existing<br>'
-        notes += '<b>Export</b> – Export your conditions from one game so you can import into another.<br><i>NOTE: If migrating from Combat Master to another Combat Master it will copy the entire Combat Master configuration.  If coming from Combat Tracker,  it will only copy the conditions and you’ll have to reconfigure everything else.</i><br>' 
-        notes += '<b>Import</b> – Import from another game<br>'
-        notes += '<b>Reset</b> – This resets the entire session state.  It defaults the conditions to D&D 5e.<br>'
-        notes += '<b>Back</b> – Return to Tracker Menu<br>'
-        notes += '<br>'
+    buildMainMenuHeld = function(handout,setupID,conditionID) {
+        let notes
+        
+        notes = `<div class="content note-editor notes">
+                    <p>
+                        <img src="https://s3.amazonaws.com/files.d20.io/images/152155100/DcEfpVBdzKz9t-SS23KZhA/original.png?15953856105">
+                    </p>
+                    <h4><i>Held Combat (Yellow Bar)</i> - Icons in order from Left to Right </h4>
+                    <ul>
+                        <li><b>Start Combat </b>— Restarts Combat from where it was previous held</li>
+                        <li><b>Setup </b>— Shows the <a href="http://journal.roll20.net/handout/${setupID}">Setup Menu</a>.</li>
+                    </ul>`
+        notes += buildMainConditions('https://s3.amazonaws.com/files.d20.io/images/133804415/0Te1DEzFMolSiIj7DfZfTw/original.png?15892970575', conditionID)
+        notes += `</div>`
+        
+        handout.set({notes:notes});         
+    },    
+       
+    buildMainConditions = function(image,conditionID) {
+        let notes = `<h4><i>Conditions</i> - From Left to Right </h4>
+                    <ul>
+                        <li><b>Icon </b>— The default or custom token marker assigned to the condition is displayed here. If the condition uses the Token Condition script, it will simply show "TC" here.</li>
+                        <li><b>Name </b>— The name of the condition.</li>
+                        <li><b>Add </b>— Add the condition to the selected token(s). Will use the conditions settings for Duration, Default, Override, and Messages. Will invoke any API commands and/or Macros assigned to the condition.</li>
+                        <li><b>Remove </b>— Removes the condition from the selected token(s).</li>
+                        <li><b>Favorite </b>— If a star is displayed, the condition will show in the favorites menu. If a globe is displayed, the condition will only show in the all conditions menu. Clicking on either the star or globe icon for each condition will toggle if it's a favorite or not.</li><li><b>Edit </b>— Shows the <a href="http://journal.roll20.net/handout/${conditionID}">Condition Menu</a> for that condition.</li>
+                    </ul>
+                    <h4><i>Change View</i></h4>
+                    <ul>
+                        <li><b>All </b>— Shows all Spells and Conditions</li>
+                        <li><b>Conditions </b>— Shows all Conditions (Condition Type = Condition)</li>
+                        <li><b>Spells </b>— Shows all Spells (Condition Type = Spell)</li>
+                        <li><b>Favorites </b>— Shows all Favorites</li>
+                    </ul>`
+                    
+        return notes            
+    },
+        
+    buildSetupMenu = function(handout,initiativeID,turnorderID,timerID,announceID,macroID,statusID,concentrationID,conditionsID,exportID) {
+        let notes = `<div class="content note-editor notes">
+                        <p>
+                            <img src="https://s3.amazonaws.com/files.d20.io/images/152155095/jC-VGZKJY2kweDvEfeIKRA/original.png?15953856105">
+                        </p>
+                        <h4><i>Combat Setup</i></h4>
+                        <ul>
+                            <ul>
+                                <li><b><a href="http://journal.roll20.net/handout/${initiativeID}">Initiative</a></b> — Configure how CombatMaster will roll Initiative.<br></li>
+                                <li><b><a href="http://journal.roll20.net/handout/${turnorderID}">Turnorder</a></b> — Configure how the turnorder is managed.<br></li>
+                                <li><b><a href="http://journal.roll20.net/handout/${timerID}">Timer</a></b> — Configure a timer, its length, and how it is displayed.<br></li>
+                                <li><b><a href="http://journal.roll20.net/handout/${announceID}">Announce</a></b> — Configure how turns are announced in chat.<br></li>
+                                <li><b><a href="http://journal.roll20.net/handout/${macroID}">Macro &amp; API</a></b> — Configure substitution strings for use in macros and API commands.<br></li>
+                            </ul>
+                        </ul>
+                        <h4><i>Status Setup</i></h4>
+                        <ul>
+                            <ul>
+                                <li><b><a href="http://journal.roll20.net/handout/${statusID}">Status</a></b> — Configure how conditions are managed and displayed.<br></li>
+                                <li><b><a href="http://journal.roll20.net/handout/${concentrationID}">Concentration</a></b> — Configure how Concentration is managed and displayed<br></li>
+                                <li><b><a href="http://journal.roll20.net/handout/${conditionsID}">Conditions</a></b> — A list of all conditions in CombatMaster; here, you can edit existing conditions or add new ones.<br></li>
+                                <li><b><a href="http://journal.roll20.net/handout/${exportID}">Export</a></b> — Puts a configuration code in chat to copy so you can import your conditions and settings into another game with CombatMaster. Simply triple-click the code to select it entirely (this also avoids selecting anything outside the code block). Save it in a handout to easily transmogrify to other games, or save it as a file on your computer.<br></li>
+                                <li><b>Import </b>— Import your configuration from another game.<br><b>NOTE:</b> <i>If migrating from CombatMaster to another CombatMaster, it will copy the entire CombatMaster configuration.  If coming from CombatTracker, it will only copy the conditions and you’ll have to reconfigure everything else. Importing from StatusInfo is not supported.<br></i></li>
+                            </ul>
+                        </ul>
+                        <h4><i>Resets</i></h4>                      
+                        <ul>
+                            <li><b>Reset </b>— This resets the entire session state. It defaults the conditions to D&amp;D 5e.<br></li>
+                            <li><b>Remove Ignores </b>— This Removes all Spells from the ignore list<br></li>
+                            <li><b>Clear Token Statuses</b>— This Removes all Conditions/Spells assigned to selected tokens<br></li>
+                        </ul>
+                    </div>`
+                    
+        handout.set({notes:notes}); 
+    },   
 
-        notes +=  '<h2>Initiative</h2><br>'  
-        notes += '<h3>No Initiative</h3><br>'  
-        notes += 'Combat Master may be configured to not roll initiative.  Choose ‘None’ for Roll Initiative.  You can have each character roll initiative on his/her own.<br><br><i>NOTE: If you choose to not roll intiative from combat tracker, the turn order will need to be set before starting Combat Master.</i><br>'  
-        notes += '<br>'
-        notes += '<h3>Combat Master Initiative</h3><br>'  
-        notes += 'Combat Master has its own initiative roller.  Choose ‘CombatMaster’, then configure the remaining information<br>'
-        notes += '<br>'
-        notes += '<b>Roll Each Round</b> will reroll initiative at the end of each round.  <br>'
-        notes += '<b>Initiative Attribute</b> accepts a comma delimited list of attributes that make up initiative.  The attribute name must match the attribute names in the char sheet<br>'
-        notes += '<b>Show Initiative in Chat</b> will display the initiative rolls in chat<br>' 
-        notes += '<br>'
-        notes += '<h3>Group Init Initiative</h3><br>'  
-        notes += 'Choose Group-Init.  When choosing this, Group Initiative is called and builds the turnorder<br><i>NOTE: If you choose group-init, the API must be installed in your game and configured outside of Combat Master.</i>'
-        notes += '<br>'
-        notes += '<b>Roll Each Round</b> will reroll initiative at the end of each round. <br>'
-        notes += '<b>Target Tokens</b> is a list of Token IDs that will be passed into Group Init. <br>' 
-        notes += '<b>Back</b> – Return to Setup Menu<br>'
-        notes += '<br>'
+    buildInitiativeMenu = function(handout,setupID) {
+        let notes = `<div class="content note-editor notes">
+                        <p>
+                            <img src="https://s3.amazonaws.com/files.d20.io/images/152155099/rjAlxljzxTzHNp94R3FQaQ/original.png?15953856105">
+                        </p>
+                        <h4><i>Initiative Setup</i></h4>
+                        <ul>
+                            <ul>
+                                <li><b>None </b>— CombatMaster may be configured to not roll initiative.  You can have each character roll initiative on their own.<br><b>NOTE: </b><i>If you choose to not roll initiative from CombatMaster, the turn order will need to be set before starting combat.</i></li>
+                                <li><b>CombatMaster </b>— CombatMaster has its own initiative roller. To use it, select the tokens involved in the encounter, then click the Start button in the Main Menu.<br></li>
+                                <ul>
+                                    <li><b>Roll Each Round </b>— Rerolls initiative at the end of each round.<br></li>
+                                    <li><b>Initiative Attr </b>— Accepts a comma delimited list of attributes that make up initiative. The attribute name must match the attribute names in the character sheet.</li>
+                                    <li><b>Initiative Die </b>— Set the type of dice that CombatMaster will roll for each character.<br></li>
+                                    <li><b>Show Initiative in Chat </b>— Displays the initiative rolls in chat.<br></li>
+                                </ul>
+                                <li><b>Group-Init </b>— Calls on GroupInitiative to build the turnorder when you click the Start button in the Main Menu.<br><b>NOTE: </b><i>If you choose Group-Init, the GroupInitiative script must be installed in your game and configured outside of CombatMaster.</i></li><ul><li><b>Roll Each Round </b>— Rerolls initiative at the end of each round.</li>
+                                <li><b>Target Tokens </b>— Not functional yet></li>
+                            </ul>
+                        </ul>
+                    </div>`
 
-        notes +=  '<h2>Turnorder</h2><br>'  
-        notes += 'Once Initiative is rolled, the turnorder object is created.  You configure what happens when stepping through the turnorder <br>'
-        notes += '<br>'
-        notes += '<b>Sort Turnorder</b> will sort the turnorder in descending sequence (only) once created  <br>'
-        notes += '<b>Center Map on Token</b> will center the map on the token currently active in the turnorder.<Kbr><i>Note: there was an issue where centering the map on a token on the GMLAYER was exposing tokens that the GM wanted to hide.  This has been fixed.</i><br>'
-        notes += '<b>Use Marker</b> determines if the marker is visible to players or always stays at the GM Layer<br>' 
-        notes += '<b>Marker Type</b> is set to External URL (default) or can be set to Token Marker.  If Token Marker is selected a suitable token must be uploaded to your game<br>' 
-        notes += '<b>Marker</b> is a thumbnail of what will be used to highlight the current active player<br>' 
-        notes += '<b>Use Next Marker</b> if set to true will display another marker around the player that is next in the turnorder.  If set to false, then the next player up is not highlighted<br>' 
-        notes += '<b>Next Marker</b> is a thumbnail of what will be used to highlight the next active player<br>' 
-        notes += '<br>'
-        notes += '<h3>Beginning of Each Round</h3><br>'  
-        notes += 'Token Mod, Roll20 AM a Macro or an FX can be invoked at the beginning of each Round<br>'
-        notes += '<b>API</b> will get invoked.  It must be a full TokeMmod command.  If you have any inline rolls the normal [[1d6]] must be replaced with [#[1d6]#].<br>'
-        notes += '<b>Roll20AM</b> will get invoked.  It must be a full Roll20AM command.  All Commands will need to be bracketed using {{ and }} For Example:<br>' 
-        notes += '{{!token-mod {{--ids tokenid}} {{--flip light_hassight}}}}<br>'
-        notes += '<b>FX</b> will get invoked. It must be a valid FX <br>' 
-        notes += '<b>Characters Macro</b> will get invoked. This requires OnMyTurn and uses a global macro substituting in all players characters on the map<br>' 
-        notes += '<b>All Tokens Macro</b> will get invoked. This requires OnMyTurn and uses a global macro substituting in tokens on the map<br>' 
-        notes += '<br>'
-        notes += '<h3>Beginning of Each Turn</h3><br>'  
-        notes += 'Token Mod, Roll20 AM a Macro or an FX can be invoked at the beginning of each Turn<br>'
-        notes += '<b>API</b> will get invoked.  It must be a full TokeMmod command.  If you have any inline rolls the normal [[1d6]] must be replaced with [#[1d6]#].<br>'
-        notes += '<b>Roll20AM</b> will get invoked.  It must be a full Roll20AM command. <br>' 
-        notes += '<b>FX</b> will get invoked. It must be a valid FX <br>' 
-        notes += '<b>Macro</b> will get invoked. This requires OnMyTurn and uses a global macro substituting in the current character in the turnorder<br>' 
-        notes += '<br>'
-        notes += '<b>Back</b> – Return to Setup Menu<br>'
-        notes += '<br>'
+        handout.set({notes:notes});     
+    },     
 
-        notes +=  '<h2>Timer</h2><br>'  
-        notes += '<b>Turn Timer</b> setting to true turns on the timer.  The timer displays a second by second countdown under the current active token in turnorder <br>'
-        notes += '<b>Time</b> determines the total time in seconds that the active token has to complete the turn<br>'
-        notes += '<b>Skip Turn</b> will automatically advance to the next active token when the timer runs to 0<br>' 
-        notes += '<b>Send To Chat</b> sends the timer coundown to chat<br>' 
-        notes += '<b>Show On Token</b> displays the timer underneath the current active token<br>' 
-        notes += '<b>Token Font</b> determines the font of the timer displayed underneath the current active token<br>' 
-        notes += '<b>Token Font Size</b> determines the size of the font of the timer displayed underneath the current active token<br>' 
-        notes += '<b>Back</b> – Return to Setup Menu<br>'
-        notes += '<br>'
+    buildTurnorderMenu = function(handout,setupID) {
+        let notes = `<div class="content note-editor notes">
+                        <p>
+                            <img src="https://s3.amazonaws.com/files.d20.io/images/152155089/ITDSxgaL_xtJ7w_jiNg0gA/original.png?15953856105">
+                        </p>    
+                        <h4><i>Turnorder Setup</i></h4>
+                        <ul>
+                            <ul>
+                                <li><b>Sort Turnorder </b>— Sorts the turnorder in descending sequence (only) once created.<br></li>
+                                <li><b>Center Map on Token </b>— Will center the map for all players on the token currently active in the turnorder using the Ping function. This will not center the map if the token is on the GM Layer.<br></li>
+                                <li><b>Use Marker </b>— Determines if the marker is visible to players or always stays on the GM Layer. If visible, the marker will only move to the GM Layer if a token in the turnorder is on the GM Layer. It will do switch layers before moving to that token, and after moving to the next token, so as not to give away the position of any tokens hidden from players.<br></li><li><b>Marker Type </b>— Set to External URL (default) or can be set to Token Marker.  If Token Marker is selected a suitable token must be uploaded to your game.</li><li><b>Marker </b>— A thumbnail of what will be used to highlight the current active character.</li><li><b>Use Next Marker </b>— If set to true will display another marker around the player that is next in the turnorder.  If set to false, then the next player up is not highlighted.</li>
+                                <li><b>Use Next Marker </b>— A thumbnail of what will be used to highlight the next active character. Set to None if you don't need it</li>
+                            </ul>
+                        </ul>`
+            notes +=    buildExternalCallMenu('<b>Beginning of Each Round</b>')
+            notes +=    buildExternalCallMenu("<b>Beginning of Each Turn</b>")
+            notes +=    `</div>`
+        
+        handout.set({notes:notes}); 
+    },      
+    
+    buildExternalCallMenu = function(title,round,condition) {
+        let notes = `<h4><i>${title}</i></h4>
+                     <h5><i> Set various external calls which will be invoked</i></h5>
+                    <ul>
+                        <li><b>API </b>— Must be a full API command. You must use brackets {{ and }} around the command and around each parameter when entering the command. Any inline rolls must be written like [#[1d6]#] instead of [[1d6]].</li>
+                        <li><b>Roll20AM </b>— Must be a full Roll20AM command. You must use brackets {{ and }} around the command and around each parameter when entering the command.</li>
+                        <li><b>FX </b>— Must be a valid FX command.</li>`
+        if (round) {
+            notes +=    `<li><b>Characters Macro </b>— This uses a global macro substituting in all player characters on the map. Follows other macro rules (see below)</li>
+                         <li><b>All Tokens Macro </b>— This uses a global macro substituting in all tokens on the map. Follows other macro rules (see below)</li>`
+        } else {
+            notes +=    `<li><b>Macro </b>— Must be the full macro name (without the #). Any inline rolls within the macro must be written like [#[1d6]#] instead of [[1d6]].</li>`
+        }
+        if (condition) {
+            notes +=    `<li><b>Persistent Macro</b> — Determines if the assigned macro is repeated at the start of an affected token's turn.`    
+        }
+        notes +=    `</ul>`
 
-        notes +=  '<h2>Announce</h2><br>'  
-        notes += '<b>Announce Rounds</b> sends a message to chat when a new round has started.<br>'
-        notes += '<b>Announce Turns</b> sends the current active player in turnorder to chat, plus any conditions or messages assigned<br>'
-        notes += '<b>Whisper To GM</b> sends Rounds and Turns only to GM<br>' 
-        notes += '<b>Shorten Long Names</b> shortens the character name when sending the Turn to chat<br>' 
-        notes += '<b>Show NPC Turns</b> determines if NPC turns are displayed to all players or GM only<br>' 
-        notes += '<b>Back</b> – Return to Setup Menu<br>'
-        notes += '<br>'
+        return notes  
+    },    
+    
+    buildTimerMenu = function(handout,setupID) {
+        let notes = `<div class="content note-editor notes">
+                        <p>
+                            <img src="https://s3.amazonaws.com/files.d20.io/images/152155088/xni0bvuiAktNfbrTbUAPog/original.png?15953856105">
+                        </p>
+                        <h4><i>Timer Setup</i></h4>
+                        <ul>
+                            <li><b>Turn Timer </b>— Setting to true turns on the timer. The timer displays a red second by second countdown under the current active token in turnorder.<br>&lt;Image of a token with the timer below it&gt;<br></li>
+                            <li><b>Time </b>— Determine the total time in seconds that the active token has to complete the turn.<br></li><li><b>Skip Turn </b>— Automatically advances to the next turn when the timer reaches 0.<br></li>
+                            <li><b>Send to Chat </b>— Sends intermittent alerts to chat when the timer starts, when it reaches the halfway point, when it reaches 10 seconds, and when it reaches 5 seconds.<br></li>
+                            <li><b>Show on Token </b>— Choose whether to display the timer underneath the active token.<br></li>
+                            <li><b>Token Font </b>— Set the font for the displayed timer.<br></li>
+                            <li><b>Token Font Size </b>—  Set the font size for the displayed timer.</li>
+                        </ul>
+                    </div>`
+                    
+        handout.set({notes:notes}); 
+    },      
+ 
+     buildAnnouncementsMenu = function(handout,setupID) {
+        let notes = `<div class="content note-editor notes">
+                        <p>
+                            <img src="https://s3.amazonaws.com/files.d20.io/images/152155098/7i1LPHIZ87fVB56cUMcvhw/original.png?15953856105">
+                        </p>
+                        <h4><i>Announcements Setup</i></h4>
+                        <ul>
+                            <li><b>Announce Rounds </b>— Sends a message to chat when a new round has started.</li>
+                            <li><b>Announce Turns </b>— Sends a message to chat with the current active token if it is not on the GM Layer, plus any assigned conditions or messages.<br>
+                                <ul>
+                                    <li><img src="https://s3.amazonaws.com/files.d20.io/images/152224865/IupB8psepZNaKPSkDB1UhA/original.png?15954302265"></li>
+                                    <li><b>Down Arrow Icon </b>— Delays Player Turn.</li>
+                                    <li><b>CheckBox Icon </b>— Ends Player Turn.</li>
+                                    <li><b>Condition Name </b>— Click on it to view Condition Description.</li>
+                                    <li><b>Trashcan Icon </b>— Click on it to remove Condition from Token.</li>
+                                </ul>    
+                            </li>
+                            <li><b>Whisper GM Only </b>— Choose whether all announcements are only sent to the GM.<br></li>
+                            <li><b>Shorten Long Names </b>— Shortens the token name as displayed in the turn announcement.<br></li>
+                            <li><b>Show NPC Conditions </b>— Choose whether NPC turn announcements are only sent to the GM.<br></li>
+                        </ul>
+                    </div>`
+        handout.set({notes:notes}); 
+    },      
 
-        notes +=  '<h2>Status</h2><br>'  
-        notes += '<b>Whisper To GM</b> sends Condition Descriptions only to GM<br>' 
-        notes += '<b>Player Allowed Changes</b> allows each player to assign their own conditions.  When this is turned on, the player active in the turnorder receives the Tracker Menu where they can add or remove conditions (only)<br>'
-        notes += '<b>Send Changes to Chat</b> sends the Condition Description to Chat when a Condition is added to a token<br>'
-        notes += '<b>Clear Conditions on Close</b> removes all Condition Icons from the token when the combat is stopped.  If this is turned off, the icons must be manually removed from the tokens<br>' 
-        notes += '<b>Use Messages</b> enables messages to be included with conditions assigned to the token<br>' 
-        notes += '<b>Back</b> – Return to Setup Menu<br>'
-        notes += '<br>'
+     buildMacroMenu = function(handout,setupID) {
+        let notes = `<div class="content note-editor notes"><p>This menu is for setting up strings to substitute for various types of calls in Macros and APIs. For example, if you want CombatMaster to run a macro that would normally use @{selected|character_id}, you would need to set up a substitution string for CharID, then use that string in place of @{selected|character_id} in the macro itself.</p><p>Substitution strings work best as unique terms that won't be used elsewhere in a command or macro, otherwise CombatMaster may insert a substituted call somewhere it doesn't belong. So you'd want the TokenID substitute to be something like 'tokenidentifier' since that isn't likely to be used anywhere else, whereas 'name' is not a good substitute, because it is a word that is likely to be used in other contexts.</p><p>The PlayerID substitution string is specifically for use in TokenMod commands. If you set the PlayerID substitution to something like 'playeridentifier', then a TokenMod command in CombatMaster would look like this:</p><pre>!token-mod --api-as playeridentifier --ids tokenidentifier --on showname<br></pre>
+                        <p>
+                            <img src="https://s3.amazonaws.com/files.d20.io/images/152155094/0ZAC_3VwnVxEL_ZLfgo-iA/original.png?15953856105">
+                        </p>
+                        <h4><i>Macro & API Setup</i></h4>
+                        <ul>
+                            <li><b>Type </b>— The type of call being substituted.<br></li>
+                            <li><b>String </b>— The substitution string you have set up, for use in API commands and macros.<br></li>
+                            <li><b>Delete </b>— Delete the substitution on this line.<br></li>
+                            <li><b>Add Substitution </b>— Create a new substitution string.<br></li>
+                        </ul>
+                    </div>`
+        handout.set({notes:notes}); 
+    },      
 
-        notes +=  '<h2>Conditions</h2><br>'  
-        notes += '<b>Cog Icon</b> enables editing an existing condition<br>' 
-        notes += '<b>Add Condition</b> creates a new condition<br>'
-        notes += '<b>Back</b> – Return to Setup Menu<br>'
-        notes += '<br>'
+     buildStatusMenu = function(handout,setupID) {
+        let notes = `<div class="content note-editor notes">
+                        <p>
+                            <img src="https://s3.amazonaws.com/files.d20.io/images/152155103/WF7QJJUMbfTjTjPWyd8SYQ/original.png?15953856105">
+                        </p>
+                        <h4><i>Status Setup</i></h4>
+                        <ul>
+                            <li><b>Whisper GM Only </b>— Choose whether condition descriptions are only sent to the GM.<br></li>
+                            <li><b>Player Allowed Changes </b>— When this is turned on, the player active in the turnorder receives a Menu where they can add or remove conditions from their token.<br></li>
+                            <li><b>Send Changes to Chat </b>— Choose whether condition descriptions are sent to chat when a condition is added to a token.<br></li>
+                            <li><b>Clear Conditions on Close </b>— Choose whether stopping combat removes conditions from all tokens.<br></li>
+                            <li><b>Use Messages </b>— Enables messages to be included with conditions; will query for a message whenever a condition is added to a token.<br></li>
+                            <li><b>Auto Add Spells </b>— Enables Combat Master to detect spells and add them to Combat Master.  Note: Not all spells can be detected due to programming of that sheet<br></li>
+                            <li><b>Sheet </b>— Current Supported Sheets (OGL, Shaped, PF2, PF1)<br></li>
+                        </ul>
+                    </div>`
+        handout.set({notes:notes});    
+    },   
+    
+    buildConcentrationMenu = function(handout,setupID) {
+         let notes = `<div class="content note-editor notes">
+                        <p>
+                            <img src="https://s3.amazonaws.com/files.d20.io/images/152155091/gy3wl9H_uHBHWeQXcRk5cw/original.png?15953856105">
+                        </p>
+                        <h4><i>Concentration Setup</i></h4>
+                        <ul>
+                            <li><b>Use Concentration </b>— Enables Concentration process<br></li>
+                            <li><b>Player Allowed Changes </b>— When this is turned on, the player active in the turnorder receives a Menu where they can add or remove conditions from their token.<br></li>
+                            <li><b>Send Changes to Chat </b>— Choose whether condition descriptions are sent to chat when a condition is added to a token.<br></li>
+                            <li><b>Clear Conditions on Close </b>— Choose whether stopping combat removes conditions from all tokens.<br></li>
+                            <li><b>Use Messages </b>— Enables messages to be included with conditions; will query for a message whenever a condition is added to a token.<br></li>
+                            <li><b>Auto Add Spells </b>— Enables Combat Master to detect spells and add them to Combat Master.  Note: Not all spells can be detected due to programming of that sheet<br></li>
+                            <li><b>Sheet </b>— Current Supported Sheets (OGL, Shaped, PF2, PF1)<br></li>
+                        </ul>
+                    </div>`   
+        handout.set({notes:notes});             
+    },    
+    
+    buildConditionsMenu = function(handout,setupID) {
+        let notes = `<div class="content note-editor notes">
+                        <p>
+                            <img src="https://s3.amazonaws.com/files.d20.io/images/152155101/zyFZLPVbsoAT7a1CI9bVEg/original.png?15953856105">
+                        </p>
+                        <h4><i>Conditions Menu</i></h4>
+                        <ul>
+                            <li><b>Icon </b>— The default or custom token marker assigned to the condition is displayed here. If the condition uses the TokenCondition script, it will simply show "TC" here.</li><li><b>Name </b>— The name of the condition.</li>
+                            <li><b>Edit </b>— Shows the <a href="http://journal.roll20.net/handout/-M5yiGl9bj-bn0V-72pd">Condition Editing Menu</a> for that condition.</li>
+                            <li><b>Add Condition </b>— Create a new condition. You will first be prompted for a condition name, then it will show you the new condition's Editing Menu.<br></li>
+                        </ul>
+                    </div>`
+        handout.set({notes:notes});             
+        
+    },      
+    
+    buildConditionMenu = function(handout,setupID) {
+        let notes = `<div class="content note-editor notes">
+                        <p>
+                            <img src="https://s3.amazonaws.com/files.d20.io/images/152155092/bngB_blWo6C8bSBvU6ytGw/original.png?15953856105">
+                        </p>
+                        <h4><i>Condition Menu</i></h4>
+                        <ul>
+                            <li><b>Name </b>— The name of the condition<br></li>
+                            <li><b>Type </b>— Determines if a Spell or Condition.  Set to spell if using concentration<br></li>
+                            <li><b>Icon Type </b>— Determines what options are presented when clicking <b>Icon</b>.<br></li>
+                            <ul>
+                                <li>CombatMaster — Lets you pick from Roll20 default markers only.</li>
+                                <li>TokenMarker — Requires the libTokenMarker script; lets you pick from any marker sets in your game, including Roll20 default.<br><b>NOTE:</b> <i>Token marker names with spaces may cause issues, it is recommended to avoid spaces in token marker names.</i></li>
+                                <li>TokenCondition — Requires the TokenCondition script; lets you pick from any characters used by this script.<br></li>
+                            </ul>
+                            <li><b>Icon </b>— Thumbnail of the marker that will be used by the current condition; click to change (options based on your selection for <b>Icon Type</b>). If using TokenCondition for the condition, thumbnail will be replaced by "TC".<br></li>
+                            <li><b>Duration </b>— Defines the length of the condition before it is removed.<br></li>
+                            <li><b>Direction </b>— Defines how quickly the duration is reduced each round.  Set to a negative number to reduce the duration, positive number if it increases over time, or 0.  If 0, it remains permanently on the token until manually removed.</li>
+                            <li><b>Override </b>— Determines if the direction/duration can be overridden when assigning the condition to the token.  For conditions that do not change, set override to  false and the direction/duration roll queries do not display when assigning the condition.</li>
+                            <li><b>Favorites </b>— Determines if the condition shows in the Favorites menu.  This can also be set on the Main Menu.  The Favorites menu shows only conditions marked as Favorite.<br></li>
+                            <li><b>Message </b>— Set a default message that will show along with the condition. It can be overridden when assigning the condition. If you have commas in the description, use brackets {{ and }} around it when entering it.<br></li>
+                            <li><b>Targeted </b>— Determines if the condition applies to another token; useful for effects that affect one or more targets but have a duration based on the caster's turn. Applies the condition's marker to the target token(s). Rather than using the @{target} feature, the GM will see the following message in chat:<br>&lt;Image of the Select Targets message&gt;<br></li>
+                            <li><b>Concentration </b>— Set to true if a Spell and Spell causes concentration on the caster<br></li>
+                            <li><b>Add API </b>— Displays the Add API Menu.  Click on this if you want an external API call when adding a condition to a token(s)<br></li>
+                            <li><b>Remove API </b>— Displays the Remove API Menu.  Click on this if you want an external API call when removing a condition from a token(s)<br></li>
+                            <li><b>Edit Description </b>— Add a description to condition.  Use {{ }} if there's periods or commas in descrription<br></li>
+                            <li><b>Delete Condition </b>— Delete the condition from CombatMaster.<br></li>
+                        </ul>
+                     </div>`
+                
+        handout.set({notes:notes});  
+    },      
+    
+    buildAddAPIMenu = function(handout,setupID) {
+        let notes = `<div class="content note-editor notes"><p>Use the Macro & API menu to setup Substitution Strings if needed. For example, if you want CombatMaster to run a macro that would normally use @{selected|character_id}, you would need to set up a substitution string for CharID, then use that string in place of @{selected|character_id} in the macro itself.</p><p>Substitution strings work best as unique terms that won't be used elsewhere in a command or macro, otherwise CombatMaster may insert a substituted call somewhere it doesn't belong. So you'd want the TokenID substitute to be something like 'tokenidentifier' since that isn't likely to be used anywhere else, whereas 'name' is not a good substitute, because it is a word that is likely to be used in other contexts.</p><p>The PlayerID substitution string is specifically for use in TokenMod commands. If you set the PlayerID substitution to something like 'playeridentifier', then a TokenMod command in CombatMaster would look like this:</p><pre>!token-mod --api-as playeridentifier --ids tokenidentifier --on showname<br></pre>
+                        <p>
+                            <img src="https://s3.amazonaws.com/files.d20.io/images/152155097/fpdZk-v1a2C7miDJmJ1NIA/original.png?15953856105">
+                        </p>`
+            notes +=    buildExternalCallMenu('<b>Add API</b>')              
 
-        notes +=  '<h2>Condition</h2><br>'  
-        notes += '<b>Name</b> is the name of the Condition<br>' 
-        notes += '<b>Icon Type</b> is set to Combat Master (default) or can be set to Token Marker.  If Token Marker is selected a suitable token must be uploaded to your game<br>' 
-        notes += '<b>Icon</b> is a thumbnail of what will be used for the current condition<br>' 
-        notes += '<b>Duration</b> defines the length of the Condition before being removed<br>' 
-        notes += '<b>Direction</b> defines how quickly the duration is reduced each Round.  Set to a negative number to reduce the duration, positive number if it increases over time or 0.  If 0, it remains permanently on the token until removed<br>' 
-        notes += '<b>Override</b> determines if the direction/durastion can be overriden when assigning the Condition to the token.  For spells that do not change, set override to false and the direction/duration roll queries do not display when assigning the Condition<br>' 
-        notes += '<b>Favorites</b> determines if the Condition shows in the Favorites menu.  This can also be set on the Tracker Menu.  The Favorites menu shows a smaller number of Conditions<br>' 
-        notes += '<b>Message</b> this is a default message that will show along with the condition.  It can be overidden when assigning the condition.  If you have commas in the description us brackets {{ and }} around it when entering it<br>' 
-        notes += '<b>Descrip[tion</b> shows when the condition is assigned or when the player is announced. If you have commas within the description places brackets {{ and }} around it when entering it<br>' 
-        notes += '<br>'
-        notes += '<b>Adding Condition External Calls</b> which are invoked when a Condition is assigned to a Token<br>'
-        notes += '<b>- API</b> will get invoked.  It must be a full TokeMmod command.  If you have any inline rolls the normal [[1d6]] must be replaced with [#[1d6]#].<br>'
-        notes += '<b>- Roll20AM</b> will get invoked.  It must be a full Roll20AM command. <br>' 
-        notes += '<b>- FX</b> will get invoked. It must be a valid FX <br>' 
-        notes += '<b>- Macro</b> will get invoked. This requires OnMyTurn and uses a global macro substituting in the current character in the turnorder<br>' 
-        notes += '<br>'     
-        notes += '<b>Removing Condition External Calls</b> which are invoked when a Condition is removed from a Token<br>'
-        notes += '<b>- API</b> will get invoked.  It must be a full TokeMmod command.  If you have any inline rolls the normal [[1d6]] must be replaced with [#[1d6]#].<br>'
-        notes += '<b>- Roll20AM</b> will get invoked.  It must be a full Roll20AM command. <br>' 
-        notes += '<b>- FX</b> will get invoked. It must be a valid FX <br>' 
-        notes += '<b>- Macro</b> will get invoked. This requires OnMyTurn and uses a global macro substituting in the current character in the turnorder<br>' 
-        notes += '<br>'                
-        notes += '<b>Back</b> – Return to Setup Menu<br>'
-        notes += '<br>'
-            
-        return notes
+        handout.set({notes:notes});  
+    },      
+
+    buildRemoveAPIMenu = function(handout,setupID) {
+        let notes = `<div class="content note-editor notes"><p>Use the Macro & API menu to setup Substitution Strings if needed. For example, if you want CombatMaster to run a macro that would normally use @{selected|character_id}, you would need to set up a substitution string for CharID, then use that string in place of @{selected|character_id} in the macro itself.</p><p>Substitution strings work best as unique terms that won't be used elsewhere in a command or macro, otherwise CombatMaster may insert a substituted call somewhere it doesn't belong. So you'd want the TokenID substitute to be something like 'tokenidentifier' since that isn't likely to be used anywhere else, whereas 'name' is not a good substitute, because it is a word that is likely to be used in other contexts.</p><p>The PlayerID substitution string is specifically for use in TokenMod commands. If you set the PlayerID substitution to something like 'playeridentifier', then a TokenMod command in CombatMaster would look like this:</p><pre>!token-mod --api-as playeridentifier --ids tokenidentifier --on showname<br></pre>
+                        <p>
+                            <img src="https://s3.amazonaws.com/files.d20.io/images/152155093/xt61MIhDuu93ZCOu7Tt8xA/original.png?15953856105">
+                        </p>`
+            notes +=    buildExternalCallMenu('<b>Remove API</b>')              
+
+        handout.set({notes:notes});  
+    },     
+    
+    buildExportMenu = function(handout) {
+        let notes = `<div class="content note-editor notes">
+                        <p>
+                            <img src="https://s3.amazonaws.com/files.d20.io/images/152155090/ilEH0Pon0ovgR1LMmKEAag/original.png?15953856105">
+                        </p>
+                        <h4><i>Export Menu</i></h4>
+                        <p>This configuration code can be copied so you can import your conditions and settings into another game with CombatMaster. Simply triple-click the code to select it entirely (this also avoids selecting anything outside the code block). Save it in a handout to easily transmogrify to other games, or save it as a file on your computer.</p>
+                        <p><b>NOTE:</b> <i>If migrating from CombatMaster to another CombatMaster, it will copy the entire CombatMaster configuration.  If coming from CombatTracker, it will only copy the conditions and you’ll have to reconfigure everything else. Importing from StatusInfo is not supported.</i></p>
+                    </div>`
+                    
+        handout.set({notes:notes});            
     },
     
     checkInstall = function () {
@@ -3473,6 +4431,7 @@ var CombatMaster = CombatMaster || (function() {
         on('change:graphic:top', handleGraphicMovement);
         on('change:graphic:left', handleGraphicMovement);
         on('change:graphic:layer', handleGraphicMovement);
+        on('change:graphic:'+state[combatState].config.concentration.woundBar+'_value', handleConstitutionSave);
 
         if('undefined' !== typeof DeathTracker && DeathTracker.ObserveTokenChange){
             DeathTracker.ObserveTokenChange(function(obj,prev) {

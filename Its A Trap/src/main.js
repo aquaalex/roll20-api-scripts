@@ -31,13 +31,12 @@ var ItsATrap = (() => {
       }, 1000*effect.delay);
 
       // Let the GM know that the trap has been triggered.
-      let announcer = state.ItsATrap.userOptions.announcer;
       if(activatingVictim)
-        sendChat(announcer, `/w gm The trap ${effect.name} has been ` +
+        ItsATrap.Chat.whisperGM(`The trap ${effect.name} has been ` +
           `triggered by ${activatingVictim.get('name')}. ` +
           `It will activate in ${effect.delay} seconds.`);
       else
-        sendChat(announcer, `/w gm The trap ${effect.name} has been ` +
+        ItsATrap.Chat.whisperGM(`The trap ${effect.name} has been ` +
           `triggered. It will activate in ${effect.delay} seconds.`);
     }
     else
@@ -93,7 +92,7 @@ var ItsATrap = (() => {
 
         // Also check the distance to any path triggers.
         let triggerDist = Number.POSITIVE_INFINITY;
-        if(effect.triggerPaths) {
+        if (_.isArray(effect.triggerPaths)) {
           triggerDist = _.chain(effect.triggerPaths)
           .map(pathId => {
             let path = getObj('path', pathId);
@@ -158,11 +157,11 @@ var ItsATrap = (() => {
     _.find(collisions, collision => {
       let trap = collision.other;
 
-      // Skip if the trap is disabled.
+      let trapEffect = new TrapEffect(trap, token);
+
+      // Skip if the trap is disabled or if it has no activation area.
       if(trap.get('status_interdiction'))
         return false;
-
-      let trapEffect = new TrapEffect(trap, token);
 
       // Should this trap ignore the token?
       if(trapEffect.ignores && trapEffect.ignores.includes(token.get('_id')))
@@ -282,7 +281,13 @@ var ItsATrap = (() => {
     // Use paths for collisions if trigger paths are set.
     .map(trap => {
       let effect = new TrapEffect(trap);
-      if(effect.triggerPaths) {
+
+      // Skip the trap if it has no trigger.
+      if (effect.triggerPaths === 'none')
+        return undefined;
+
+      // Trigger is defined by paths.
+      else if(_.isArray(effect.triggerPaths)) {
         return _.chain(effect.triggerPaths)
         .map(id => {
           if(pathsToTraps[id])
@@ -295,10 +300,13 @@ var ItsATrap = (() => {
         .compact()
         .value();
       }
+
+      // Trigger is the trap token itself.
       else
         return trap;
     })
     .flatten()
+    .compact()
     .value();
 
     // Get the collisions.
@@ -448,11 +456,10 @@ var ItsATrap = (() => {
   function noticeTrap(trap, noticeMessage) {
     let id = trap.get('_id');
     let effect = new TrapEffect(trap);
-    let announcer = state.ItsATrap.userOptions.announcer;
 
     if(!state.ItsATrap.noticedTraps[id]) {
       state.ItsATrap.noticedTraps[id] = true;
-      sendChat(announcer, noticeMessage);
+      ItsATrap.Chat.broadcast(noticeMessage);
 
       if(effect.revealWhenSpotted)
         revealTrap(trap);
@@ -490,8 +497,13 @@ var ItsATrap = (() => {
     if(effect.effectShape instanceof Array)
       _.each(effect.effectShape, pathId => {
         let path = getObj('path', pathId);
-        path.set('layer', layer);
-        toOrder(path);
+        if (path) {
+          path.set('layer', layer);
+          toOrder(path);
+        }
+        else {
+          ItsATrap.Chat.error(new Error(`Could not find activation area shape ${pathId} for trap ${effect.name}. Perhaps you deleted it? Either way, please fix it through the trap's Activation Area property.`));
+        }
       });
   }
 
@@ -532,11 +544,16 @@ var ItsATrap = (() => {
       layer = 'objects';
     }
 
-    if(effect.triggerPaths) {
+    if(_.isArray(effect.triggerPaths)) {
       _.each(effect.triggerPaths, pathId => {
         let path = getObj('path', pathId);
-        path.set('layer', layer);
-        toOrder(path);
+        if (path) {
+          path.set('layer', layer);
+          toOrder(path);
+        }
+        else {
+          ItsATrap.Chat.error(new Error(`Could not find trigger path ${pathId} for trap ${effect.name}. Perhaps you deleted it? Either way, please fix it through the trap's Trigger Area property.`));
+        }
       });
     }
   }

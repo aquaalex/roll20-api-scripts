@@ -66,7 +66,7 @@ pathfinderskillbook:
 
 pathfinder2utilities:
 - "Pathfinder2Utilities"
-- "Utility"
+- "System Toolbox"
 
 ffgstarwarsdice:
 - "FFG-SWRPG-Dice-Roller"
@@ -789,3 +789,67 @@ savageworldsstatuschanger:
 midgardturntrackerhelper:
   - "MidgardTurnTrackerHelper"
   - "Utility"
+
+shortrest:
+  - "ShortRest"
+  - "System Toolbox"
+
+tokenmarker:
+  - "TokenMarker"
+  - "Utility"
+
+heroroller:
+  - "HeroRoller"
+  - "System Toolbox"
+
+universalvttimport:
+  - "UniversalVTTImporter"
+  - "Utility"
+
+supernotes:
+  - "Supernotes"
+  - "Utility"
+
+changemapclonetokens:
+  - "ChangeMap_CloneTokens"
+  - "Utility"
+
+restandrecovery:
+  - "Rest-and-Recovery"
+  - "Utility"
+
+tokenactionmarker:
+  - "Token-Action-Maker"
+  - "Utility"
+
+5erestinstyle:
+  - "5E Resting in Style"
+  - "System Toolbox"
+
+huntersmark:
+  - "HuntersMark"
+  - "Utility"
+
+spintokens:
+  - "SpinTokens"
+  - "Utility"
+
+agonecleanolds:
+  - "AgoneCleanOlds"
+  - "System Toolbox"
+
+deltagreenrpgcompanion:
+  - "DeltaGreenRPGCompanion"
+  - "System Toolbox"
+
+dynamiclightrecorder:
+  - "DynamicLightRecorder"
+  - "Utility"
+
+gofish:
+  - "GoFish!"
+  - "Utility"
+
+weaponarcs:
+- "WeaponArcs"
+- "Tokens"

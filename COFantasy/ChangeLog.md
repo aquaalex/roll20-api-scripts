@@ -1,7 +1,84 @@
 # COFantasy: Historique des changements (depuis la version 1.0)
-## 2.05
+## 2.08
+### Capacités
+* Support pour la capacité forêt vivante du druide.
+* Ajout de la capacité botte mortelle du barde.
+* Possibilité de spécifier le bonus apporté par une feinte.
+* Support pour l'énergie de la mort, utilisée dans la campagne Vengeance.
+* Adaptable de la Voie de l'humain
+* Résistance à la magie du barbare
+
 ### Autres améliorations
+* Les armes à poudre font maintenant des DM explosifs par défaut.
+* Gestion de l'arme en main gauche.
+* Ajout d'un raccourci pour faire afficher toutes les action d'attaque visibles dur la fiche dans n'importe quelle liste d'actions.
+* Ajout de la possibilité de mettre des options globales dans les listes d'action.
+* Prise en compte des jets, attributs et inputs dans la partie options des lignes d'attaque, quand elles sont utilisées depuis un bouton (comme avec les listes d'action).
+* Possibilité de ne pas appliquer l'usure pour un combat (!cof-usure-off)
+* Ajout d'un effet retardé pour le cas où on doit compter des nombres de tours
+* Ajout du bonus de couvert
+* Attaques par défaut dans la liste d'actions, possibilité de se passer complètement des attributs pour les attaques (actif quand la version 3.3 de la fiche sera là.
+
+### Corrections de bugs
+* Prise en compte correcte de l'armure des PNJ pour la main d'énergie.
+* Correction d'un bug qui faisait planter en cas de save dans une attaque
+* Correction de l'affichage en cas d'immunité à un type d'attaque
+* Prise en compte correcte de l'attribut option_pm par défaut
+* Garde le jet d'image décalée en mémoire pour le cas des capacité qui font relancer l'attaque.
+* Prise en compte des réflexes félins (Voie du pourfendeur) dans l'initiative
+
+## 2.07
+### Autres améliorations
+* Correction de l'affichage des armes dans le statut avec les nouvelles fiches
+* Correction d'un bug quand il n'y avait aucun token actif dans le tour de combat
+* Utilisation des options standard pour le mur de force
+
+## 2.06
+### Capacités
+* Ajout de la capacité lien épique.
+
+### Autres améliorations
+* Amélioration de la gestion de l'attaque en meute des gobelins.
+* Possibilité qu'une arme fasse de la lumière quand elle est dégainée.
+* Extinction de la lumière quand l'effet d'arme enflammée prend fin
+* Ajout d'une option pour modifier la portée d'une attaque.
+* Ajout de la résistance à la magie (bonus aux tests pour résister à la magie)
+* Intégration d'une table d'échecs critique, avec jets et effets pris en compte.
+
+### Corrections de bugs
+* Correction de bug d'affichage du nombre de soins restants.
+* Les sortilèges ne sont plus affectés par les RD/tranchant. La destruction des mort-vivants devient un sortilege.
+* Correction de bug sur les effets de peur qui ralentissent.
+
+## 2.05
+### Capacités
+* Possibilité de spécifier une valeur (option --valeur) pour le rayon affaiblissant.
+* Ajout de la capacité Peau d'acier du barbare.
+* Ajout de la partie soins de la capacité guérison du prêtre.
+* Ajout de la capacité Amitié de l'ensorceleur.
+* Amélioration de l'automatisation de la capacité Ignorer la douleur du chevalier
+* Ajout de la capacité Peau de pierre du magicien
+* Enflammer une arme fait maintenant de la lumière.
+
+### Autres améliorations
+* Possibilité de spécifier une valeur à --ignoreRD
+* Au changement de jour, affichage des effets à durée indéterminée encore actifs pour que le MJ puisse les supprimer si besoin.
+* Possibilité d'utilise une table pour les échecs critiques.
+* Création automatique d'un personnage cible
+* Possibilité de changer l'aura d'initiative
+* Application de la règle selon laquelle les dm de base d'une attaque ne peuvent être 0 (pour les gobelins ou personnages avec peu de force).
+* Ajout des markers de statut personnalisés
+* Amélioration de l'interface des attaques qui n'utilisent pas les champs d'attaque de la fiche
+* Prise en compte de l'unité de mesure de la carte pour les distances de vision
+* Possibilité de changer des difficultés de sauvegarde en fonction de la mana dépensée en tempête de mana intense.
+* Amélioration des affichages de jets
 * Standardisation de !cof-lancer-sorts et support dans les consommables
+
+### Corrections de bugs
+* Meilleur comportement des tokens de lumières quand on change de carte pour un même personnage.
+* Correction d'un bug dans le renouvellement des élixirs qui empêchait de créer de nouveaux élixirs si le forgesort n'a aucun élixir sur lui à la tombée de la nuit.
+* Les attaques à distance ne déclanchent plus l'effet aggriper.
+* Prévention de crash en cas d'erreur interne de roll20.
 
 ## 2.04
 ### Capacités
